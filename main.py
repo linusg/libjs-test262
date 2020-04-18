@@ -158,7 +158,10 @@ def main() -> None:
         "-v", "--verbose", action="store_true", help="print output of test runs"
     )
     parser.add_argument(
-        "--timeout", default=10, type=int, help="timeout for each test run in seconds"
+        "--timeout",
+        default=10,
+        type=int,
+        help="timeout for each test run in seconds (defaults to 10)",
     )
     args = parser.parse_args()
 

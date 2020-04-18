@@ -44,7 +44,7 @@ optional arguments:
                         glob pattern used for test file searching (defaults to
                         test/**/*.js)
   -v, --verbose         print output of test runs
-  --timeout TIMEOUT     timeout for each test run in seconds
+  --timeout TIMEOUT     timeout for each test run in seconds (defaults to 10)
 ```
 
 ## Current status
