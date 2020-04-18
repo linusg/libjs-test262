@@ -62,7 +62,7 @@ def build_script(test262: Path, test_file: Path, includes: Iterable[str]) -> str
     load_includes = ""
     for include in includes:
         include_path = (test262 / "harness" / include).resolve()
-        load_includes = f"{load_includes} load('{include_path}');"
+        load_includes += f"load('{include_path}');\n"
     script = TEST_SCRIPT.format(
         harness_assert_path=harness_assert_path,
         harness_sta_path=harness_sta_path,
