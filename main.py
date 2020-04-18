@@ -43,8 +43,8 @@ class TestResult(Enum):
 
 def get_metadata(test_file: Path) -> Optional[dict]:
     lines = test_file.resolve().read_text().splitlines()
-    start = 0
-    end = len(lines)
+    start = None
+    end = None
     for i, line in enumerate(lines):
         if line.strip() == "/*---":
             start = i + 1
