@@ -19,7 +19,7 @@ The only dependency for now is `ruamel.yaml` for parsing the test's YAML metadat
 To clone test262, clone SerenityOS and build `js` (standalone as part of Lagom), run:
 
 ```console
-$ bash setup.sh
+$ ./setup.sh
 ```
 
 If this succeeds, run:
