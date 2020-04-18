@@ -35,7 +35,7 @@ and execute those this will be more useful!
 ## Options
 
 ```
-usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-v]
+usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-v] [--timeout TIMEOUT]
 
 Run the test262 ECMAScript test suite with SerenityOS's LibJS
 
@@ -48,5 +48,6 @@ optional arguments:
                         glob pattern used for test file searching (defaults to
                         test/**/*.js)
   -v, --verbose         print output of test runs
+  --timeout TIMEOUT     timeout for each test run in seconds
 ```
 

@@ -72,7 +72,7 @@ def build_script(test262: Path, test_file: Path, includes: Iterable[str]) -> str
     return script
 
 
-def run_script(js: Path, script: str, timeout: float = 10) -> str:
+def run_script(js: Path, script: str, timeout: float) -> str:
     with NamedTemporaryFile(mode="w", suffix="js") as tmp_file:
         tmp_file.write(script)
         tmp_file.flush()
@@ -87,7 +87,9 @@ def run_script(js: Path, script: str, timeout: float = 10) -> str:
     return result.stdout.strip()
 
 
-def run_test(js: Path, test262: Path, test_file: Path) -> Tuple[TestResult, str]:
+def run_test(
+    js: Path, test262: Path, test_file: Path, timeout: float
+) -> Tuple[TestResult, str]:
     def test_result(test_result: TestResult) -> Tuple[TestResult, str]:
         return test_result, output
 
@@ -107,7 +109,7 @@ def run_test(js: Path, test262: Path, test_file: Path) -> Tuple[TestResult, str]
 
     script = build_script(test262, test_file, metadata.get("includes", []))
     try:
-        output = run_script(js, script)
+        output = run_script(js, script, timeout)
     except subprocess.TimeoutExpired:
         return test_result(TestResult.TIMEOUT_ERROR)
     has_syntax_error = "Parse error" in output or "Error: Unexpected token" in output
@@ -155,6 +157,9 @@ def main() -> None:
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="print output of test runs"
     )
+    parser.add_argument(
+        "--timeout", default=10, type=int, help="timeout for each test run in seconds"
+    )
     args = parser.parse_args()
 
     js = Path(args.js).resolve()
@@ -181,7 +186,7 @@ def main() -> None:
         for i, test_file in enumerate(test_files):
             if args.verbose:
                 print(f"Running test: {test_file}")
-            test_result, output = run_test(js, test262, test_file)
+            test_result, output = run_test(js, test262, test_file, timeout=args.timeout)
             if test_result == TestResult.SUCCESS:
                 passed_tests += 1
                 emoji = "✅"
