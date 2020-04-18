@@ -69,11 +69,6 @@ def build_script(test262: Path, test_file: Path, includes: Iterable[str]) -> str
         load_includes=load_includes,
         test_file_path=test_file_path,
     )
-    script = script.replace("\n", "")
-    while "  " in script:
-        script = script.replace("  ", "")
-    # Newline is required for execution
-    script = f"{script}\n"
     return script
 
 
