@@ -12,6 +12,8 @@ To install the script's dependencies, run:
 $ pip3 install -r requirements.txt
 ```
 
+The only dependency for now is `ruamel.yaml` for parsing the test's YAML metadata.
+
 ## Usage
 
 To clone test262, clone SerenityOS and build `js` (standalone as part of Lagom), run:
