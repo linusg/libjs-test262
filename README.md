@@ -28,6 +28,25 @@ If this succeeds, run:
 $ python3 main.py --js ./serenity/Meta/Lagom/build/js --test262 ./test262/
 ```
 
+## Options
+
+```
+usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-v] [--timeout TIMEOUT]
+
+Run the test262 ECMAScript test suite with SerenityOS's LibJS
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -j JS, --js JS        path to the SerenityOS Lagom 'js' binary
+  -t TEST262, --test262 TEST262
+                        path to the 'test262' directory
+  -p PATTERN, --pattern PATTERN
+                        glob pattern used for test file searching (defaults to
+                        test/**/*.js)
+  -v, --verbose         print output of test runs
+  --timeout TIMEOUT     timeout for each test run in seconds
+```
+
 ## Current status
 
 As many of the testing utilities in test262's harness fail, the results are more
@@ -79,23 +98,3 @@ timer.js                      Syntax Error
 typeCoercion.js               Syntax Error
 wellKnownIntrinsicObjects.js  Syntax Error
 ```
-
-## Options
-
-```
-usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-v] [--timeout TIMEOUT]
-
-Run the test262 ECMAScript test suite with SerenityOS's LibJS
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -j JS, --js JS        path to the SerenityOS Lagom 'js' binary
-  -t TEST262, --test262 TEST262
-                        path to the 'test262' directory
-  -p PATTERN, --pattern PATTERN
-                        glob pattern used for test file searching (defaults to
-                        test/**/*.js)
-  -v, --verbose         print output of test runs
-  --timeout TIMEOUT     timeout for each test run in seconds
-```
-
