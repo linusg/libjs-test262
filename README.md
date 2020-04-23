@@ -64,7 +64,7 @@ $ ./test-harness.sh
 This will run all the JavaScript files in `test262/harness` through `js` and report
 if a syntax or runtime error occurred.
 
-As of 2020-04-18:
+As of 2020-04-23:
 
 ```
 arrayContains.js              Success!
@@ -76,13 +76,13 @@ byteConversionValues.js       Success!
 compareArray.js               Syntax Error
 compareIterator.js            Runtime Error
 dateConstants.js              Success!
-decimalToHexString.js         Syntax Error
+decimalToHexString.js         Success!
 deepEqual.js                  Syntax Error
 detachArrayBuffer.js          Success!
-doneprintHandle.js            Syntax Error
+doneprintHandle.js            Success!
 fnGlobalObject.js             Success!
 isConstructor.js              Success!
-nans.js                       Runtime Error
+nans.js                       Success!
 nativeFunctionMatcher.js      Syntax Error
 promiseHelper.js              Syntax Error
 propertyHelper.js             Syntax Error
@@ -95,6 +95,6 @@ testBigIntTypedArray.js       Runtime Error
 testIntl.js                   Syntax Error
 testTypedArray.js             Runtime Error
 timer.js                      Syntax Error
-typeCoercion.js               Syntax Error
+typeCoercion.js               Success!
 wellKnownIntrinsicObjects.js  Syntax Error
 ```
