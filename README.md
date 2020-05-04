@@ -49,9 +49,9 @@ optional arguments:
 
 ## Current status
 
-As many of the testing utilities in test262's harness fail, the results are more
-or less useless. You'll see a few passing tests, but once LibJS can fully parse
-and execute those this will be more useful!
+As some of the testing utilities in test262's harness still fail to parse, the
+results are more or less useless. You'll see a few passing tests, but once
+LibJS can fully parse and execute them this will be more useful!
 
 ## Testing the test harness
 
@@ -61,40 +61,41 @@ Run:
 $ ./test-harness.sh
 ```
 
-This will run all the JavaScript files in `test262/harness` through `js` and report
-if a syntax or runtime error occurred.
+This will try to run all the JavaScript files in `test262/harness` through `js`
+and report if a syntax error occurred. Run the actual tests as described above
+to check for runtime errors, as some files depend on others.
 
 As of 2020-05-04:
 
-```
-arrayContains.js              Success!
-assert.js                     Success!
-assertRelativeDateMs.js       Success!
-async-gc.js                   Syntax Error
-atomicsHelper.js              Syntax Error
-byteConversionValues.js       Success!
-compareArray.js               Runtime Error
-compareIterator.js            Runtime Error
-dateConstants.js              Success!
-decimalToHexString.js         Success!
-deepEqual.js                  Syntax Error
-detachArrayBuffer.js          Success!
-doneprintHandle.js            Success!
-fnGlobalObject.js             Success!
-isConstructor.js              Success!
-nans.js                       Success!
-nativeFunctionMatcher.js      Syntax Error
-promiseHelper.js              Success!
-propertyHelper.js             Syntax Error
-proxyTrapsHelper.js           Success!
-regExpUtils.js                Syntax Error
-sta.js                        Success!
-tcoHelper.js                  Success!
-testAtomics.js                Syntax Error
-testBigIntTypedArray.js       Runtime Error
-testIntl.js                   Syntax Error
-testTypedArray.js             Runtime Error
-timer.js                      Syntax Error
-typeCoercion.js               Success!
-wellKnownIntrinsicObjects.js  Syntax Error
+```text
+[ PASS ] arrayContains.js
+[ PASS ] assert.js
+[ PASS ] assertRelativeDateMs.js
+[ FAIL ] async-gc.js
+[ FAIL ] atomicsHelper.js
+[ PASS ] byteConversionValues.js
+[ PASS ] compareArray.js
+[ PASS ] compareIterator.js
+[ PASS ] dateConstants.js
+[ PASS ] decimalToHexString.js
+[ FAIL ] deepEqual.js
+[ PASS ] detachArrayBuffer.js
+[ PASS ] doneprintHandle.js
+[ PASS ] fnGlobalObject.js
+[ PASS ] isConstructor.js
+[ PASS ] nans.js
+[ FAIL ] nativeFunctionMatcher.js
+[ PASS ] promiseHelper.js
+[ FAIL ] propertyHelper.js
+[ PASS ] proxyTrapsHelper.js
+[ FAIL ] regExpUtils.js
+[ PASS ] sta.js
+[ PASS ] tcoHelper.js
+[ FAIL ] testAtomics.js
+[ PASS ] testBigIntTypedArray.js
+[ FAIL ] testIntl.js
+[ PASS ] testTypedArray.js
+[ FAIL ] timer.js
+[ PASS ] typeCoercion.js
+[ FAIL ] wellKnownIntrinsicObjects.js
 ```

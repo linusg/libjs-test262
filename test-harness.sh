@@ -1,15 +1,16 @@
 #!/usr/bin/env sh
 
+red=`tput setaf 9`
+green=`tput setaf 10`
+reset=`tput sgr0`
+
 for f in test262/harness/*.js; do
-    printf "%-30s" $(basename $f)
-    output=$(serenity/Meta/Lagom/build/js "$f" 2>&1)
+    filename=$(basename $f)
+    output=$(serenity/Meta/Lagom/build/js "${f}" 2>&1)
     if echo $output | grep -q 'Syntax Error: Unexpected token'; then
-        echo "Syntax Error"
-        continue
+        printf "[ ${red}FAIL${reset} ]"
+    else
+        printf "[ ${green}PASS${reset} ]"
     fi
-    if echo $output | grep -q 'Uncaught exception: '; then
-        echo "Runtime Error"
-        continue
-    fi
-    echo "Success!"
+    echo " ${filename}"
 done
