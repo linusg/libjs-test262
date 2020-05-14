@@ -6,7 +6,7 @@ reset=`tput sgr0`
 
 for f in test262/harness/*.js; do
     filename=$(basename $f)
-    output=$(serenity/Meta/Lagom/build/js "${f}" 2>&1)
+    output=$(serenity/Build/js "${f}" 2>&1)
     if echo $output | grep -q 'Syntax Error'; then
         printf "[ ${red}FAIL${reset} ]"
     else
