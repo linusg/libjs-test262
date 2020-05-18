@@ -65,7 +65,7 @@ This will try to run all the JavaScript files in `test262/harness` through `js`
 and report if a syntax error occurred. Run the actual tests as described above
 to check for runtime errors, as some files depend on others.
 
-As of 2020-05-04:
+As of 2020-05-18:
 
 ```text
 [ PASS ] arrayContains.js
@@ -97,5 +97,5 @@ As of 2020-05-04:
 [ PASS ] testTypedArray.js
 [ FAIL ] timer.js
 [ PASS ] typeCoercion.js
-[ FAIL ] wellKnownIntrinsicObjects.js
+[ PASS ] wellKnownIntrinsicObjects.js
 ```
