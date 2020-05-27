@@ -65,7 +65,7 @@ This will try to run all the JavaScript files in `test262/harness` through `js`
 and report if a syntax error occurred. Run the actual tests as described above
 to check for runtime errors, as some files depend on others.
 
-As of 2020-05-18:
+As of 2020-05-27:
 
 ```text
 [ PASS ] arrayContains.js
@@ -78,7 +78,7 @@ As of 2020-05-18:
 [ PASS ] compareIterator.js
 [ PASS ] dateConstants.js
 [ PASS ] decimalToHexString.js
-[ FAIL ] deepEqual.js
+[ PASS ] deepEqual.js
 [ PASS ] detachArrayBuffer.js
 [ PASS ] doneprintHandle.js
 [ PASS ] fnGlobalObject.js
@@ -86,7 +86,7 @@ As of 2020-05-18:
 [ PASS ] nans.js
 [ FAIL ] nativeFunctionMatcher.js
 [ PASS ] promiseHelper.js
-[ FAIL ] propertyHelper.js
+[ PASS ] propertyHelper.js
 [ PASS ] proxyTrapsHelper.js
 [ FAIL ] regExpUtils.js
 [ PASS ] sta.js
