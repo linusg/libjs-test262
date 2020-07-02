@@ -112,7 +112,8 @@ def run_test(
     script = build_script(test262, test_file, metadata.get("includes", []))
     try:
         output = run_script(js, script, timeout)
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        output = e.output
         return test_result(TestResult.NONZERO_EXIT_ERROR)
     except subprocess.TimeoutExpired:
         return test_result(TestResult.TIMEOUT_ERROR)
