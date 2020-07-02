@@ -25,7 +25,7 @@ $ ./setup.sh
 If this succeeds, run:
 
 ```console
-$ python3 main.py --js ./serenity/Meta/Lagom/build/js --test262 ./test262/
+$ python3 main.py --js ./serenity/Build/js --test262 ./test262/
 ```
 
 ## Options
