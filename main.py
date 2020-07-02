@@ -177,6 +177,7 @@ def main() -> None:
             for path in test262.glob(args.pattern)
             if path.is_file() and not path.stem.endswith("FIXTURE")
         ]
+    test_files.sort()
     total_tests = len(test_files)
     print(f"Found {total_tests}.")
 
