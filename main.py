@@ -36,6 +36,7 @@ load('{test_file_path}');
 class TestResult(Enum):
     METADATA_ERROR = auto()
     LOAD_ERROR = auto()
+    NONZERO_EXIT_ERROR = auto()
     TIMEOUT_ERROR = auto()
     SUCCESS = auto()
     FAILURE = auto()
@@ -83,6 +84,7 @@ def run_script(js: Path, script: str, timeout: float) -> str:
             stderr=subprocess.STDOUT,
             text=True,
             timeout=timeout,
+            check=True,
         )
     return result.stdout.strip()
 
@@ -110,6 +112,8 @@ def run_test(
     script = build_script(test262, test_file, metadata.get("includes", []))
     try:
         output = run_script(js, script, timeout)
+    except subprocess.CalledProcessError:
+        return test_result(TestResult.NONZERO_EXIT_ERROR)
     except subprocess.TimeoutExpired:
         return test_result(TestResult.TIMEOUT_ERROR)
     has_syntax_error = "Parse error" in output or "Error: Unexpected token" in output
@@ -197,6 +201,9 @@ def main() -> None:
             elif test_result == TestResult.FAILURE:
                 failed_tests += 1
                 emoji = "❌"
+            elif test_result == TestResult.NONZERO_EXIT_ERROR:
+                failed_tests += 1
+                emoji = "💥"
             elif test_result == TestResult.TIMEOUT_ERROR:
                 failed_tests += 1
                 emoji = "💀"
