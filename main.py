@@ -77,7 +77,7 @@ def run_script(js: Path, script: str, timeout: float) -> str:
     with NamedTemporaryFile(mode="w", suffix="js") as tmp_file:
         tmp_file.write(script)
         tmp_file.flush()
-        cmd = f"{js} -t {tmp_file.name}"
+        cmd = f"{js} {tmp_file.name}"
         result = subprocess.run(
             shlex.split(cmd),
             stdout=subprocess.PIPE,
