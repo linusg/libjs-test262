@@ -2,6 +2,7 @@ import datetime
 import re
 import shlex
 import subprocess
+import traceback
 from argparse import ArgumentParser
 from enum import Enum, auto
 from pathlib import Path
@@ -40,6 +41,7 @@ class TestResult(Enum):
     TIMEOUT_ERROR = auto()
     SUCCESS = auto()
     FAILURE = auto()
+    RUNNER_EXCEPTION = auto()
 
 
 def get_metadata(test_file: Path) -> Optional[dict]:
@@ -117,6 +119,10 @@ def run_test(
         return test_result(TestResult.NONZERO_EXIT_ERROR)
     except subprocess.TimeoutExpired:
         return test_result(TestResult.TIMEOUT_ERROR)
+    except:
+        output = traceback.format_exc()
+        return test_result(TestResult.RUNNER_EXCEPTION)
+
     has_syntax_error = "Parse error" in output or "Error: Unexpected token" in output
     has_load_error = "Failed to open Error:" in output
     has_uncaught_exception = "Uncaught exception:" in output
@@ -203,6 +209,9 @@ def main() -> None:
                 failed_tests += 1
                 emoji = "❌"
             elif test_result == TestResult.NONZERO_EXIT_ERROR:
+                failed_tests += 1
+                emoji = "❗️"
+            elif test_result == TestResult.RUNNER_EXCEPTION:
                 failed_tests += 1
                 emoji = "💥"
             elif test_result == TestResult.TIMEOUT_ERROR:
