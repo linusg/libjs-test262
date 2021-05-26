@@ -65,7 +65,7 @@ This will try to run all the JavaScript files in `test262/harness` through `js`
 and report if a syntax error occurred. Run the actual tests as described above
 to check for runtime errors, as some files depend on others.
 
-As of 2020-06-09:
+As of 2021-05-26:
 
 ```text
 [ PASS ] arrayContains.js
@@ -82,6 +82,7 @@ As of 2020-06-09:
 [ PASS ] detachArrayBuffer.js
 [ PASS ] doneprintHandle.js
 [ PASS ] fnGlobalObject.js
+[ FAIL ] hidden-constructors.js
 [ PASS ] isConstructor.js
 [ PASS ] nans.js
 [ PASS ] nativeFunctionMatcher.js
