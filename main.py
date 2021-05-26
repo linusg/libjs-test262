@@ -1,4 +1,6 @@
+import concurrent.futures
 import datetime
+import multiprocessing
 import re
 import shlex
 import subprocess
@@ -11,7 +13,7 @@ from typing import Any, Iterable, Optional, Tuple
 
 from colors import strip_color
 from ruamel.yaml import YAML
-
+from tqdm import tqdm
 
 # https://github.com/tc39/test262/blob/master/INTERPRETING.md
 
@@ -42,6 +44,18 @@ class TestResult(Enum):
     SUCCESS = auto()
     FAILURE = auto()
     RUNNER_EXCEPTION = auto()
+
+
+EMOJIS = {
+    TestResult.METADATA_ERROR: "⚠️",
+    TestResult.LOAD_ERROR: "⚠️",
+    TestResult.RUNNER_EXCEPTION: "💥",
+    TestResult.TIMEOUT_ERROR: "💀",
+    TestResult.FAILURE: "❌",
+    TestResult.SUCCESS: "✅",
+}
+
+CPU_COUNT = multiprocessing.cpu_count()
 
 
 def get_metadata(test_file: Path) -> Optional[dict]:
@@ -150,6 +164,112 @@ def run_test(
     return success()
 
 
+class Runner:
+    def __init__(self, concurrency: int, timeout: int) -> None:
+        self.concurrency = concurrency
+        self.timeout = timeout
+        self.test262 = None
+        self.js = None
+        self.files = []
+        self.result_map = {}
+        self.total_count = 0
+        self.progress = 0
+        self.verbose = False
+
+    def set_verbose(self, verbose: bool) -> None:
+        self.verbose = verbose
+
+    def set_interpreter(self, js_path: str) -> None:
+        self.js = Path(js_path).resolve()
+
+    def find_tests(self, base_path: str, pattern: str) -> None:
+        self.test262 = Path(base_path).resolve()
+        print("Searching test files...")
+        if Path(pattern).resolve().is_file():
+            self.files = [Path(pattern).resolve()]
+        else:
+            self.files = [
+                path.resolve()
+                for path in self.test262.glob(pattern)
+                if path.is_file() and not path.stem.endswith("FIXTURE")
+            ]
+        self.files.sort()
+        self.total_count = len(self.files)
+        print(f"Found {self.total_count}.")
+        self.build_result_map()
+
+    def build_result_map(self) -> None:
+        for path in self.files:
+            p = Path(path).relative_to(self.test262).parent
+            counter = self.result_map
+            for segment in p.parts:
+                if not segment in counter:
+                    counter[segment] = {"count": 1, "results": {}, "children": {}}
+                    for r in TestResult:
+                        counter[segment]["results"][r] = 0
+                else:
+                    counter[segment]["count"] += 1
+                counter = counter[segment]["children"]
+
+    def count_result(self, result) -> None:
+        file, test_result, output = result
+        p = file.relative_to(self.test262).parent
+        counter = self.result_map
+        for segment in p.parts:
+            counter[segment]["results"][test_result] += 1
+            counter = counter[segment]["children"]
+
+    def report(self) -> None:
+        def print_tree(tree, path, level):
+            results = "[ "
+            for k, v in tree["results"].items():
+                if v > 0:
+                    results += f"{EMOJIS[k]} {v:<5} "
+            results += "]"
+            count = tree["count"]
+            passed = tree["results"][TestResult.SUCCESS]
+            percentage = (passed / count) * 100
+            pad = " " * (80 - len(path))
+            print(f"{path}{pad}{passed:>5}/{count:<5} ({percentage:6.2f}%) {results} ")
+            if passed > 0:
+                for k, v in tree["children"].items():
+                    print_tree(v, path + "/" + k, level + 1)
+
+        for k, v in self.result_map.items():
+            print_tree(v, k, 0)
+
+    def process(self, file: Path) -> Tuple[Path, TestResult, str]:
+        test_result, output = run_test(
+            self.js, self.test262, file, timeout=self.timeout
+        )
+
+        return (file, test_result, output)
+
+    def run(self) -> None:
+        self.progressbar = tqdm(
+            total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
+        )
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.concurrency
+        ) as executor:
+            futures = {executor.submit(self.process, f) for f in self.files}
+            for future in concurrent.futures.as_completed(futures):
+                file, test_result, output = future.result()
+                self.count_result((file, test_result, output))
+                if self.verbose:
+                    out = ""
+                    if len(output) > 0:
+                        out = output.replace("\n", "\n    ")
+                        out = f" :\n{out}\n"
+                    print(f"{EMOJIS[test_result]}  {file}{out}")
+                    self.progressbar.refresh()
+                self.progress += 1
+                self.progressbar.update(1)
+
+        self.progressbar.close()
+        print("Finished running tests.")
+
+
 def main() -> None:
     parser = ArgumentParser(
         description="Run the test262 ECMAScript test suite with SerenityOS's LibJS"
@@ -170,6 +290,13 @@ def main() -> None:
         "-v", "--verbose", action="store_true", help="print output of test runs"
     )
     parser.add_argument(
+        "-c",
+        "--concurrency",
+        default=CPU_COUNT,
+        type=int,
+        help="number of concurrent workers",
+    )
+    parser.add_argument(
         "--timeout",
         default=10,
         type=int,
@@ -177,68 +304,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    js = Path(args.js).resolve()
-    test262 = Path(args.test262).resolve()
-
-    print("Searching test files...")
-    if Path(args.pattern).resolve().is_file():
-        test_files = [Path(args.pattern).resolve()]
-    else:
-        test_files = [
-            path.resolve()
-            for path in test262.glob(args.pattern)
-            if path.is_file() and not path.stem.endswith("FIXTURE")
-        ]
-    test_files.sort()
-    total_tests = len(test_files)
-    print(f"Found {total_tests}.")
-
-    remaining_tests = total_tests
-    passed_tests = 0
-    failed_tests = 0
-
-    start_time = datetime.datetime.now()
-    try:
-        for i, test_file in enumerate(test_files):
-            if args.verbose:
-                print(f"Running test: {test_file}")
-            test_result, output = run_test(js, test262, test_file, timeout=args.timeout)
-            if test_result == TestResult.SUCCESS:
-                passed_tests += 1
-                emoji = "✅"
-            elif test_result == TestResult.FAILURE:
-                failed_tests += 1
-                emoji = "❌"
-            elif test_result == TestResult.RUNNER_EXCEPTION:
-                failed_tests += 1
-                emoji = "💥"
-            elif test_result == TestResult.TIMEOUT_ERROR:
-                failed_tests += 1
-                emoji = "💀"
-            elif (
-                test_result == TestResult.METADATA_ERROR
-                or test_result == TestResult.LOAD_ERROR
-            ):
-                failed_tests += 1
-                emoji = "⚠️"
-            else:
-                assert False
-            remaining_tests -= 1
-            progress = int((total_tests - remaining_tests) / total_tests * 100)
-            print(f"[{progress:>3}%] {emoji} {test_file.relative_to(test262)}")
-            if args.verbose and output.strip():
-                print(output)
-    except KeyboardInterrupt:
-        pass
-    end_time = datetime.datetime.now()
-
-    print("----------------")
-    print(f"Tests: {total_tests}")
-    if remaining_tests:
-        print(f"Remaining: {remaining_tests}")
-    print(f"Passed: {passed_tests}")
-    print(f"Failed: {failed_tests}")
-    print(f"Duration: {end_time-start_time}")
+    runner = Runner(args.concurrency, args.timeout)
+    runner.set_verbose(args.verbose)
+    runner.set_interpreter(args.js)
+    runner.find_tests(args.test262, args.pattern)
+    runner.run()
+    runner.report()
 
 
 if __name__ == "__main__":
