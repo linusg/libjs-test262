@@ -1,8 +1,10 @@
 import concurrent.futures
 import datetime
 import multiprocessing
+import os
 import re
 import shlex
+import signal
 import subprocess
 import traceback
 from argparse import ArgumentParser
@@ -313,4 +315,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    os.setpgrp()
+    try:
+        main()
+    except KeyboardInterrupt:
+        os.killpg(0, signal.SIGKILL)
