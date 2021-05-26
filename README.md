@@ -14,8 +14,9 @@ $ pip3 install -r requirements.txt
 
 Dependencies are:
 
-- `ansicolors` for stripping color codes from the output
-- `ruamel.yaml` for parsing the test's YAML metadata
+-   `ansicolors` for stripping color codes from the output
+-   `ruamel.yaml` for parsing the test's YAML metadata
+-   `tqdm` for displaying a progress bar
 
 ## Usage
 
