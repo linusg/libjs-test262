@@ -40,11 +40,11 @@ load('{test_file_path}');
 
 
 class TestResult(Enum):
+    SUCCESS = auto()
+    FAILURE = auto()
     METADATA_ERROR = auto()
     LOAD_ERROR = auto()
     TIMEOUT_ERROR = auto()
-    SUCCESS = auto()
-    FAILURE = auto()
     RUNNER_EXCEPTION = auto()
 
 
