@@ -128,15 +128,17 @@ def run_test(
     if metadata.get("negative") is not None:
         phase = metadata["negative"]["phase"]
         type_ = metadata["negative"]["type"]
-        if phase == "parse":
+        if phase == "parse" or phase == "early":
+            # FIXME: This shouldn't apply to a runtime SyntaxError
             return success_if(has_syntax_error)
         elif phase == "runtime":
             matches = re.findall(UNCAUGHT_EXCEPTION_REGEX, output)
             return success_if(matches and matches[0] == type_)
-        else:
-            # Others are 'early' and 'resolution', LibJS
-            # doesn't support failures in those phases
+        elif phase == "resolution":
+            # No modules yet :^)
             return failure()
+        else:
+            raise Exception(f"Unexpected phase '{phase}'")
 
     if has_syntax_error or has_uncaught_exception:
         return failure()
