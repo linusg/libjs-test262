@@ -12,7 +12,10 @@ To install the script's dependencies, run:
 $ pip3 install -r requirements.txt
 ```
 
-The only dependency for now is `ruamel.yaml` for parsing the test's YAML metadata.
+Dependencies are:
+
+- `ansicolors` for stripping color codes from the output
+- `ruamel.yaml` for parsing the test's YAML metadata
 
 ## Usage
 

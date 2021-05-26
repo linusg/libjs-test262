@@ -9,13 +9,14 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Iterable, Optional, Tuple
 
+from colors import strip_color
 from ruamel.yaml import YAML
 
 
 # https://github.com/tc39/test262/blob/master/INTERPRETING.md
 
-UNCAUGHT_EXCEPTION_REGEX = re.compile(
-    r"Uncaught exception: (?:\[(.*)\]|\"([a-zA-Z0-9]+)(?:.*)\")", re.MULTILINE
+UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX = re.compile(
+    r"Uncaught exception: \[(.+)\]", re.MULTILINE
 )
 TEST_SCRIPT = """\
 const print = console.log;
@@ -118,9 +119,13 @@ def run_test(
         output = traceback.format_exc()
         return test_result(TestResult.RUNNER_EXCEPTION)
 
-    has_syntax_error = "Parse error" in output or "Error: Unexpected token" in output
-    has_load_error = "Failed to open Error:" in output
+    error_name_matches = re.findall(
+        UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX, strip_color(output)
+    )
+    error_name = error_name_matches[0] if error_name_matches else None
     has_uncaught_exception = "Uncaught exception:" in output
+    has_syntax_error = has_uncaught_exception and error_name == "SyntaxError"
+    has_load_error = has_uncaught_exception and "Failed to open" in output
 
     if has_load_error:
         return test_result(TestResult.LOAD_ERROR)
@@ -132,8 +137,7 @@ def run_test(
             # FIXME: This shouldn't apply to a runtime SyntaxError
             return success_if(has_syntax_error)
         elif phase == "runtime":
-            matches = re.findall(UNCAUGHT_EXCEPTION_REGEX, output)
-            return success_if(matches and matches[0] == type_)
+            return success_if(error_name == type_)
         elif phase == "resolution":
             # No modules yet :^)
             return failure()
