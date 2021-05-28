@@ -180,20 +180,26 @@ class Runner:
         test262: Path,
         concurrency: int,
         timeout: int,
+        silent: bool = False,
         verbose: bool = False,
     ) -> None:
         self.js = js
         self.test262 = test262
         self.concurrency = concurrency
         self.timeout = timeout
+        self.silent = silent
         self.verbose = verbose
         self.files: List[Path] = []
         self.result_map: Dict[str, dict] = {}
         self.total_count = 0
         self.progress = 0
 
+    def log(self, message: str) -> None:
+        if not self.silent:
+            print(message)
+
     def find_tests(self, pattern: str) -> None:
-        print("Searching test files...")
+        self.log("Searching test files...")
         if Path(pattern).resolve().is_file():
             self.files = [Path(pattern).resolve()]
         else:
@@ -204,7 +210,7 @@ class Runner:
             ]
         self.files.sort()
         self.total_count = len(self.files)
-        print(f"Found {self.total_count}.")
+        self.log(f"Found {self.total_count}.")
         self.build_result_map()
 
     def build_result_map(self) -> None:
@@ -250,9 +256,10 @@ class Runner:
         return run_test(self.js, self.test262, file, timeout=self.timeout)
 
     def run(self) -> None:
-        progressbar = tqdm(
-            total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
-        )
+        if not self.silent:
+            progressbar = tqdm(
+                total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
+            )
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=self.concurrency
         ) as executor:
@@ -267,11 +274,13 @@ class Runner:
                         out = f" :\n{out}\n"
                     print(f"{EMOJIS[test_run.result]}  {test_run.file}{out}")
                     progressbar.refresh()
+                if not self.silent:
+                    progressbar.update(1)
                 self.progress += 1
-                progressbar.update(1)
 
-        progressbar.close()
-        print("Finished running tests.")
+        if not self.silent:
+            progressbar.close()
+        self.log("Finished running tests.")
 
 
 def main() -> None:
@@ -291,9 +300,6 @@ def main() -> None:
         help="glob pattern used for test file searching (defaults to test/**/*.js)",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="print output of test runs"
-    )
-    parser.add_argument(
         "-c",
         "--concurrency",
         default=CPU_COUNT,
@@ -306,6 +312,16 @@ def main() -> None:
         type=int,
         help="timeout for each test run in seconds (defaults to 10)",
     )
+    logging_group = parser.add_mutually_exclusive_group()
+    logging_group.add_argument(
+        "-s",
+        "--silent",
+        action="store_true",
+        help="don't print any progress information",
+    )
+    logging_group.add_argument(
+        "-v", "--verbose", action="store_true", help="print output of test runs"
+    )
     args = parser.parse_args()
 
     runner = Runner(
@@ -313,6 +329,7 @@ def main() -> None:
         Path(args.test262).resolve(),
         args.concurrency,
         args.timeout,
+        args.silent,
         args.verbose,
     )
     runner.find_tests(args.pattern)
