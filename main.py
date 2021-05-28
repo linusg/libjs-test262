@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from colors import strip_color
 from ruamel.yaml import YAML
@@ -187,8 +187,8 @@ class Runner:
         self.concurrency = concurrency
         self.timeout = timeout
         self.verbose = verbose
-        self.files = []
-        self.result_map = {}
+        self.files: List[Path] = []
+        self.result_map: Dict[str, dict] = {}
         self.total_count = 0
         self.progress = 0
 
