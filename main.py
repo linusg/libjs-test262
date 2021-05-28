@@ -289,10 +289,18 @@ def main() -> None:
         description="Run the test262 ECMAScript test suite with SerenityOS's LibJS"
     )
     parser.add_argument(
-        "-j", "--js", required=True, help="path to the SerenityOS Lagom 'js' binary"
+        "-j",
+        "--js",
+        required=True,
+        metavar="PATH",
+        help="path to the SerenityOS Lagom 'js' binary",
     )
     parser.add_argument(
-        "-t", "--test262", required=True, help="path to the 'test262' directory"
+        "-t",
+        "--test262",
+        required=True,
+        metavar="PATH",
+        help="path to the 'test262' directory",
     )
     parser.add_argument(
         "-p",

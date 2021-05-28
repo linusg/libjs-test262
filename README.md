@@ -35,14 +35,14 @@ python3 main.py --js ./serenity/Build/js --test262 ./test262/
 ## Options
 
 ```text
-usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [--json] [-s | -v]
+usage: main.py [-h] -j PATH -t PATH [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [--json] [-s | -v]
 
 Run the test262 ECMAScript test suite with SerenityOS's LibJS
 
 optional arguments:
   -h, --help            show this help message and exit
-  -j JS, --js JS        path to the SerenityOS Lagom 'js' binary
-  -t TEST262, --test262 TEST262
+  -j PATH, --js PATH    path to the SerenityOS Lagom 'js' binary
+  -t PATH, --test262 PATH
                         path to the 'test262' directory
   -p PATTERN, --pattern PATTERN
                         glob pattern used for test file searching (defaults to test/**/*.js)
