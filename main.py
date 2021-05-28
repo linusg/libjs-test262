@@ -172,25 +172,25 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
 
 
 class Runner:
-    def __init__(self, concurrency: int, timeout: int) -> None:
+    def __init__(
+        self,
+        js: Path,
+        test262: Path,
+        concurrency: int,
+        timeout: int,
+        verbose: bool = False,
+    ) -> None:
+        self.js = js
+        self.test262 = test262
         self.concurrency = concurrency
         self.timeout = timeout
-        self.test262 = None
-        self.js = None
+        self.verbose = verbose
         self.files = []
         self.result_map = {}
         self.total_count = 0
         self.progress = 0
-        self.verbose = False
 
-    def set_verbose(self, verbose: bool) -> None:
-        self.verbose = verbose
-
-    def set_interpreter(self, js_path: str) -> None:
-        self.js = Path(js_path).resolve()
-
-    def find_tests(self, base_path: str, pattern: str) -> None:
-        self.test262 = Path(base_path).resolve()
+    def find_tests(self, pattern: str) -> None:
         print("Searching test files...")
         if Path(pattern).resolve().is_file():
             self.files = [Path(pattern).resolve()]
@@ -306,10 +306,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    runner = Runner(args.concurrency, args.timeout)
-    runner.set_verbose(args.verbose)
-    runner.set_interpreter(args.js)
-    runner.find_tests(args.test262, args.pattern)
+    runner = Runner(
+        Path(args.js).resolve(),
+        Path(args.test262).resolve(),
+        args.concurrency,
+        args.timeout,
+        args.verbose,
+    )
+    runner.find_tests(args.pattern)
     runner.run()
     runner.report()
 
