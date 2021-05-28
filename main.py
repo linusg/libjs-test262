@@ -7,10 +7,11 @@ import signal
 import subprocess
 import traceback
 from argparse import ArgumentParser
+from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Iterable, Optional, Tuple
+from typing import Any, Iterable, Optional
 
 from colors import strip_color
 from ruamel.yaml import YAML
@@ -45,6 +46,13 @@ class TestResult(Enum):
     LOAD_ERROR = auto()
     TIMEOUT_ERROR = auto()
     RUNNER_EXCEPTION = auto()
+
+
+@dataclass
+class TestRun:
+    file: Path
+    result: TestResult
+    output: str
 
 
 EMOJIS = {
@@ -105,34 +113,32 @@ def run_script(js: Path, script: str, timeout: float) -> str:
     return result.stdout.strip()
 
 
-def run_test(
-    js: Path, test262: Path, test_file: Path, timeout: float
-) -> Tuple[TestResult, str]:
-    def test_result(test_result: TestResult) -> Tuple[TestResult, str]:
-        return test_result, output
+def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
+    def test_run(result: TestResult) -> TestRun:
+        return TestRun(file, result, output)
 
-    def failure() -> Tuple[TestResult, str]:
-        return test_result(TestResult.FAILURE)
+    def failure() -> TestRun:
+        return test_run(TestResult.FAILURE)
 
-    def success() -> Tuple[TestResult, str]:
-        return test_result(TestResult.SUCCESS)
+    def success() -> TestRun:
+        return test_run(TestResult.SUCCESS)
 
-    def success_if(condition: Any) -> Tuple[TestResult, str]:
-        return test_result(TestResult.SUCCESS if condition else TestResult.FAILURE)
+    def success_if(condition: Any) -> TestRun:
+        return test_run(TestResult.SUCCESS if condition else TestResult.FAILURE)
 
-    output = ""
-    metadata = get_metadata(test_file)
+    metadata = get_metadata(file)
     if metadata is None:
-        return test_result(TestResult.METADATA_ERROR)
+        return test_run(TestResult.METADATA_ERROR)
 
-    script = build_script(test262, test_file, metadata.get("includes", []))
+    script = build_script(test262, file, metadata.get("includes", []))
     try:
         output = run_script(js, script, timeout)
     except subprocess.TimeoutExpired:
-        return test_result(TestResult.TIMEOUT_ERROR)
+        output = ""
+        return test_run(TestResult.TIMEOUT_ERROR)
     except:
         output = traceback.format_exc()
-        return test_result(TestResult.RUNNER_EXCEPTION)
+        return test_run(TestResult.RUNNER_EXCEPTION)
 
     error_name_matches = re.findall(
         UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX, strip_color(output)
@@ -143,7 +149,7 @@ def run_test(
     has_load_error = has_uncaught_exception and "Failed to open" in output
 
     if has_load_error:
-        return test_result(TestResult.LOAD_ERROR)
+        return test_run(TestResult.LOAD_ERROR)
 
     if metadata.get("negative") is not None:
         phase = metadata["negative"]["phase"]
@@ -212,12 +218,11 @@ class Runner:
                     counter[segment]["count"] += 1
                 counter = counter[segment]["children"]
 
-    def count_result(self, result) -> None:
-        file, test_result, output = result
-        p = file.relative_to(self.test262).parent
+    def count_result(self, test_run: TestRun) -> None:
+        directory = test_run.file.relative_to(self.test262).parent
         counter = self.result_map
-        for segment in p.parts:
-            counter[segment]["results"][test_result] += 1
+        for segment in directory.parts:
+            counter[segment]["results"][test_run.result] += 1
             counter = counter[segment]["children"]
 
     def report(self) -> None:
@@ -239,12 +244,8 @@ class Runner:
         for k, v in self.result_map.items():
             print_tree(v, k, 0)
 
-    def process(self, file: Path) -> Tuple[Path, TestResult, str]:
-        test_result, output = run_test(
-            self.js, self.test262, file, timeout=self.timeout
-        )
-
-        return (file, test_result, output)
+    def process(self, file: Path) -> TestRun:
+        return run_test(self.js, self.test262, file, timeout=self.timeout)
 
     def run(self) -> None:
         self.progressbar = tqdm(
@@ -255,14 +256,14 @@ class Runner:
         ) as executor:
             futures = {executor.submit(self.process, f) for f in self.files}
             for future in concurrent.futures.as_completed(futures):
-                file, test_result, output = future.result()
-                self.count_result((file, test_result, output))
+                test_run = future.result()
+                self.count_result(test_run)
                 if self.verbose:
                     out = ""
-                    if len(output) > 0:
-                        out = output.replace("\n", "\n    ")
+                    if test_run.output:
+                        out = test_run.output.replace("\n", "\n    ")
                         out = f" :\n{out}\n"
-                    print(f"{EMOJIS[test_result]}  {file}{out}")
+                    print(f"{EMOJIS[test_run.result]}  {test_run.file}{out}")
                     self.progressbar.refresh()
                 self.progress += 1
                 self.progressbar.update(1)
