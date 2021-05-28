@@ -250,7 +250,7 @@ class Runner:
         return run_test(self.js, self.test262, file, timeout=self.timeout)
 
     def run(self) -> None:
-        self.progressbar = tqdm(
+        progressbar = tqdm(
             total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
         )
         with concurrent.futures.ThreadPoolExecutor(
@@ -266,11 +266,11 @@ class Runner:
                         out = test_run.output.replace("\n", "\n    ")
                         out = f" :\n{out}\n"
                     print(f"{EMOJIS[test_run.result]}  {test_run.file}{out}")
-                    self.progressbar.refresh()
+                    progressbar.refresh()
                 self.progress += 1
-                self.progressbar.update(1)
+                progressbar.update(1)
 
-        self.progressbar.close()
+        progressbar.close()
         print("Finished running tests.")
 
 
