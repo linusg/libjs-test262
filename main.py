@@ -272,11 +272,11 @@ class Runner:
                 test_run = future.result()
                 self.count_result(test_run)
                 if self.verbose:
-                    out = ""
+                    print(f"{EMOJIS[test_run.result]} {test_run.file}")
                     if test_run.output:
-                        out = test_run.output.replace("\n", "\n    ")
-                        out = f" :\n{out}\n"
-                    print(f"{EMOJIS[test_run.result]}  {test_run.file}{out}")
+                        print()
+                        print(test_run.output)
+                        print()
                     progressbar.refresh()
                 if not self.silent:
                     progressbar.update(1)
