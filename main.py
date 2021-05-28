@@ -53,7 +53,7 @@ class TestResult(str, Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
     METADATA_ERROR = "METADATA_ERROR"
-    LOAD_ERROR = "LOAD_ERROR"
+    HARNESS_ERROR = "HARNESS_ERROR"
     TIMEOUT_ERROR = "TIMEOUT_ERROR"
     RUNNER_EXCEPTION = "RUNNER_EXCEPTION"
 
@@ -67,7 +67,7 @@ class TestRun:
 
 EMOJIS = {
     TestResult.METADATA_ERROR: "⚠️",
-    TestResult.LOAD_ERROR: "⚠️",
+    TestResult.HARNESS_ERROR: "⚠️",
     TestResult.RUNNER_EXCEPTION: "💥",
     TestResult.TIMEOUT_ERROR: "💀",
     TestResult.FAILURE: "❌",
@@ -156,12 +156,12 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
     error_name = error_name_matches[0] if error_name_matches else None
     has_uncaught_exception = "Uncaught exception:" in output
     has_syntax_error = has_uncaught_exception and error_name == "SyntaxError"
-    has_load_error = has_uncaught_exception and (
+    has_harness_error = has_uncaught_exception and (
         "Failed to open" in output or "Failed to load test harness scripts" in output
     )
 
-    if has_load_error:
-        return test_run(TestResult.LOAD_ERROR)
+    if has_harness_error:
+        return test_run(TestResult.HARNESS_ERROR)
 
     if metadata.get("negative") is not None:
         phase = metadata["negative"]["phase"]
