@@ -208,14 +208,14 @@ class Runner:
         self.build_result_map()
 
     def build_result_map(self) -> None:
-        for path in self.files:
-            p = Path(path).relative_to(self.test262).parent
+        for file in self.files:
+            directory = file.relative_to(self.test262).parent
             counter = self.result_map
-            for segment in p.parts:
+            for segment in directory.parts:
                 if not segment in counter:
                     counter[segment] = {"count": 1, "results": {}, "children": {}}
-                    for r in TestResult:
-                        counter[segment]["results"][r] = 0
+                    for result in TestResult:
+                        counter[segment]["results"][result] = 0
                 else:
                     counter[segment]["count"] += 1
                 counter = counter[segment]["children"]
