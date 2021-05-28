@@ -257,6 +257,9 @@ class Runner:
         return run_test(self.js, self.test262, file, timeout=self.timeout)
 
     def run(self) -> None:
+        if not self.files:
+            self.log("No tests to run.")
+            return
         if not self.silent:
             progressbar = tqdm(
                 total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
