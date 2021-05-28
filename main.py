@@ -35,9 +35,16 @@ const $262 = {{
     global: globalThis,
     agent: {{ /* ... */ }}
 }};
-load('{harness_assert_path}');
-load('{harness_sta_path}');
-{load_includes}
+try {{
+    load('{harness_assert_path}');
+    load('{harness_sta_path}');
+    {load_includes}
+}} catch (e) {{
+    // Output is matched by the test runner to distinguish harness
+    // syntax/runtime errors from errors in the actual test file.
+    console.log('Failed to load test harness scripts');
+    throw e;
+}}
 load('{test_file_path}');
 """
 
@@ -149,7 +156,9 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
     error_name = error_name_matches[0] if error_name_matches else None
     has_uncaught_exception = "Uncaught exception:" in output
     has_syntax_error = has_uncaught_exception and error_name == "SyntaxError"
-    has_load_error = has_uncaught_exception and "Failed to open" in output
+    has_load_error = has_uncaught_exception and (
+        "Failed to open" in output or "Failed to load test harness scripts" in output
+    )
 
     if has_load_error:
         return test_run(TestResult.LOAD_ERROR)
