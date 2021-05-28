@@ -35,7 +35,7 @@ python3 main.py --js ./serenity/Build/js --test262 ./test262/
 ## Options
 
 ```text
-usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [-s | -v]
+usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [--json] [-s | -v]
 
 Run the test262 ECMAScript test suite with SerenityOS's LibJS
 
@@ -49,6 +49,7 @@ optional arguments:
   -c CONCURRENCY, --concurrency CONCURRENCY
                         number of concurrent workers
   --timeout TIMEOUT     timeout for each test run in seconds (defaults to 10)
+  --json                print the test results as JSON
   -s, --silent          don't print any progress information
   -v, --verbose         print output of test runs
 ```

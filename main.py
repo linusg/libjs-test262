@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import multiprocessing
 import os
 import re
@@ -10,7 +11,7 @@ import subprocess
 import traceback
 from argparse import ArgumentParser
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Iterable, List, Optional
@@ -41,13 +42,13 @@ load('{test_file_path}');
 """
 
 
-class TestResult(Enum):
-    SUCCESS = auto()
-    FAILURE = auto()
-    METADATA_ERROR = auto()
-    LOAD_ERROR = auto()
-    TIMEOUT_ERROR = auto()
-    RUNNER_EXCEPTION = auto()
+class TestResult(str, Enum):
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+    METADATA_ERROR = "METADATA_ERROR"
+    LOAD_ERROR = "LOAD_ERROR"
+    TIMEOUT_ERROR = "TIMEOUT_ERROR"
+    RUNNER_EXCEPTION = "RUNNER_EXCEPTION"
 
 
 @dataclass
@@ -312,6 +313,9 @@ def main() -> None:
         type=int,
         help="timeout for each test run in seconds (defaults to 10)",
     )
+    parser.add_argument(
+        "--json", action="store_true", help="print the test results as JSON"
+    )
     logging_group = parser.add_mutually_exclusive_group()
     logging_group.add_argument(
         "-s",
@@ -334,7 +338,10 @@ def main() -> None:
     )
     runner.find_tests(args.pattern)
     runner.run()
-    runner.report()
+    if args.json:
+        print(json.dumps(runner.result_map))
+    else:
+        runner.report()
 
 
 if __name__ == "__main__":
