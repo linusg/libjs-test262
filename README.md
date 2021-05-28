@@ -9,32 +9,32 @@ Install `git`, `cmake`, `ninja`, `gcc`/`clang` and `python3` (3.7+).
 To install the script's dependencies, run:
 
 ```console
-$ pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 Dependencies are:
 
--   `ansicolors` for stripping color codes from the output
--   `ruamel.yaml` for parsing the test's YAML metadata
--   `tqdm` for displaying a progress bar
+- `ansicolors` for stripping color codes from the output
+- `ruamel.yaml` for parsing the test's YAML metadata
+- `tqdm` for displaying a progress bar
 
 ## Usage
 
 To clone test262, clone SerenityOS and build `js` (standalone as part of Lagom), run:
 
 ```console
-$ ./setup.sh
+./setup.sh
 ```
 
 If this succeeds, run:
 
 ```console
-$ python3 main.py --js ./serenity/Build/js --test262 ./test262/
+python3 main.py --js ./serenity/Build/js --test262 ./test262/
 ```
 
 ## Options
 
-```
+```text
 usage: main.py [-h] -j JS -t TEST262 [-p PATTERN] [-v] [-c CONCURRENCY] [--timeout TIMEOUT]
 
 Run the test262 ECMAScript test suite with SerenityOS's LibJS
@@ -63,7 +63,7 @@ LibJS can fully parse and execute them this will be more useful!
 Run:
 
 ```console
-$ ./test-harness.sh
+./test-harness.sh
 ```
 
 This will try to run all the JavaScript files in `test262/harness` through `js`
