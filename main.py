@@ -313,7 +313,7 @@ def main() -> None:
         "--concurrency",
         default=CPU_COUNT,
         type=int,
-        help="number of concurrent workers",
+        help="number of concurrent workers (defaults to number of CPU cores)",
     )
     parser.add_argument(
         "--timeout",

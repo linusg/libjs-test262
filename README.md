@@ -47,7 +47,7 @@ optional arguments:
   -p PATTERN, --pattern PATTERN
                         glob pattern used for test file searching (defaults to test/**/*.js)
   -c CONCURRENCY, --concurrency CONCURRENCY
-                        number of concurrent workers
+                        number of concurrent workers (defaults to number of CPU cores)
   --timeout TIMEOUT     timeout for each test run in seconds (defaults to 10)
   --json                print the test results as JSON
   -s, --silent          don't print any progress information
