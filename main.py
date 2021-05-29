@@ -68,8 +68,8 @@ class TestRun:
 
 EMOJIS = {
     TestResult.METADATA_ERROR: "⚠️",
-    TestResult.HARNESS_ERROR: "⚠️",
-    TestResult.RUNNER_EXCEPTION: "💥",
+    TestResult.HARNESS_ERROR: "💥️",
+    TestResult.RUNNER_EXCEPTION: "🐍",
     TestResult.TIMEOUT_ERROR: "💀",
     TestResult.SKIPPED: "🤷",
     TestResult.FAILURE: "❌",
