@@ -126,6 +126,8 @@ def run_script(js: Path, script: str, timeout: float) -> str:
 
 
 def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
+    output = ""
+
     def test_run(result: TestResult) -> TestRun:
         return TestRun(file, result, output)
 
@@ -146,7 +148,6 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
     try:
         output = run_script(js, script, timeout)
     except subprocess.TimeoutExpired:
-        output = ""
         return test_run(TestResult.TIMEOUT_ERROR)
     except:
         output = traceback.format_exc()
