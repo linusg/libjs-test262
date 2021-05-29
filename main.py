@@ -114,12 +114,12 @@ def build_script(test262: Path, test_file: Path, includes: Iterable[str]) -> str
     return script
 
 
-def run_script(js: Path, script: str, timeout: float) -> str:
+def run_script(js: Path, script: str, timeout: float) -> subprocess.CompletedProcess:
     with NamedTemporaryFile(mode="w", suffix="js") as tmp_file:
         tmp_file.write(script)
         tmp_file.flush()
         cmd = f"{js} {tmp_file.name}"
-        result = subprocess.run(
+        return subprocess.run(
             shlex.split(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -127,7 +127,6 @@ def run_script(js: Path, script: str, timeout: float) -> str:
             text=True,
             timeout=timeout,
         )
-    return result.stdout.strip()
 
 
 def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
@@ -154,7 +153,8 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
 
     script = build_script(test262, file, metadata.get("includes", []))
     try:
-        output = run_script(js, script, timeout)
+        process = run_script(js, script, timeout)
+        output = process.stdout.strip()
     except subprocess.CalledProcessError as error:
         output = error.stdout.strip()
         if error.returncode < 0:
