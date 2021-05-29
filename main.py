@@ -9,6 +9,7 @@ import shlex
 import signal
 import subprocess
 import traceback
+import resource
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
@@ -114,7 +115,14 @@ def build_script(test262: Path, test_file: Path, includes: Iterable[str]) -> str
     return script
 
 
-def run_script(js: Path, script: str, timeout: float) -> subprocess.CompletedProcess:
+def run_script(
+    js: Path, script: str, timeout: float, memory_limit: int
+) -> subprocess.CompletedProcess:
+    def limit_memory():
+        resource.setrlimit(
+            resource.RLIMIT_AS, (memory_limit * 1024 * 1024, resource.RLIM_INFINITY)
+        )
+
     with NamedTemporaryFile(mode="w", suffix="js") as tmp_file:
         tmp_file.write(script)
         tmp_file.flush()
@@ -126,10 +134,13 @@ def run_script(js: Path, script: str, timeout: float) -> subprocess.CompletedPro
             check=True,
             text=True,
             timeout=timeout,
+            preexec_fn=limit_memory,
         )
 
 
-def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
+def run_test(
+    js: Path, test262: Path, file: Path, timeout: float, memory_limit: int
+) -> TestRun:
     output = ""
 
     def test_run(result: TestResult) -> TestRun:
@@ -153,7 +164,7 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
 
     script = build_script(test262, file, metadata.get("includes", []))
     try:
-        process = run_script(js, script, timeout)
+        process = run_script(js, script, timeout, memory_limit)
         output = process.stdout.strip()
     except subprocess.CalledProcessError as error:
         output = error.stdout.strip()
@@ -205,6 +216,7 @@ class Runner:
         test262: Path,
         concurrency: int,
         timeout: int,
+        memory_limit: int,
         silent: bool = False,
         verbose: bool = False,
     ) -> None:
@@ -212,6 +224,7 @@ class Runner:
         self.test262 = test262
         self.concurrency = concurrency
         self.timeout = timeout
+        self.memory_limit = memory_limit
         self.silent = silent
         self.verbose = verbose
         self.files: List[Path] = []
@@ -278,7 +291,13 @@ class Runner:
             print_tree(v, k, 0)
 
     def process(self, file: Path) -> TestRun:
-        return run_test(self.js, self.test262, file, timeout=self.timeout)
+        return run_test(
+            self.js,
+            self.test262,
+            file,
+            timeout=self.timeout,
+            memory_limit=self.memory_limit,
+        )
 
     def run(self) -> None:
         if not self.files:
@@ -350,6 +369,12 @@ def main() -> None:
         help="timeout for each test run in seconds (defaults to 10)",
     )
     parser.add_argument(
+        "--memory-limit",
+        default=512,
+        type=int,
+        help="memory limit for each test run in megabytes (defaults to 512)",
+    )
+    parser.add_argument(
         "--json", action="store_true", help="print the test results as JSON"
     )
     logging_group = parser.add_mutually_exclusive_group()
@@ -369,6 +394,7 @@ def main() -> None:
         Path(args.test262).resolve(),
         args.concurrency,
         args.timeout,
+        args.memory_limit,
         args.silent,
         args.verbose,
     )
