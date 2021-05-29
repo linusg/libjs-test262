@@ -52,6 +52,7 @@ load('{test_file_path}');
 class TestResult(str, Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
+    SKIPPED = "SKIPPED"
     METADATA_ERROR = "METADATA_ERROR"
     HARNESS_ERROR = "HARNESS_ERROR"
     TIMEOUT_ERROR = "TIMEOUT_ERROR"
@@ -70,6 +71,7 @@ EMOJIS = {
     TestResult.HARNESS_ERROR: "⚠️",
     TestResult.RUNNER_EXCEPTION: "💥",
     TestResult.TIMEOUT_ERROR: "💀",
+    TestResult.SKIPPED: "🤷",
     TestResult.FAILURE: "❌",
     TestResult.SUCCESS: "✅",
 }
