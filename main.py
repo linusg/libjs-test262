@@ -76,6 +76,8 @@ EMOJIS = {
     TestResult.SUCCESS: "✅",
 }
 
+UNSUPPORTED_FEATURES = ["IsHTMLDDA"]
+
 CPU_COUNT = multiprocessing.cpu_count()
 
 
@@ -143,6 +145,9 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
     metadata = get_metadata(file)
     if metadata is None:
         return test_run(TestResult.METADATA_ERROR)
+
+    if any(feature in UNSUPPORTED_FEATURES for feature in metadata.get("features", [])):
+        return test_run(TestResult.SKIPPED)
 
     script = build_script(test262, file, metadata.get("includes", []))
     try:
