@@ -67,13 +67,13 @@ class TestRun:
 
 
 EMOJIS = {
+    TestResult.SUCCESS: "✅",
+    TestResult.FAILURE: "❌",
+    TestResult.SKIPPED: "🤷",
     TestResult.METADATA_ERROR: "⚠️",
     TestResult.HARNESS_ERROR: "💥️",
-    TestResult.RUNNER_EXCEPTION: "🐍",
     TestResult.TIMEOUT_ERROR: "💀",
-    TestResult.SKIPPED: "🤷",
-    TestResult.FAILURE: "❌",
-    TestResult.SUCCESS: "✅",
+    TestResult.RUNNER_EXCEPTION: "🐍",
 }
 
 UNSUPPORTED_FEATURES = ["IsHTMLDDA"]
