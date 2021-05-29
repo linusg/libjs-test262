@@ -56,6 +56,7 @@ class TestResult(str, Enum):
     METADATA_ERROR = "METADATA_ERROR"
     HARNESS_ERROR = "HARNESS_ERROR"
     TIMEOUT_ERROR = "TIMEOUT_ERROR"
+    PROCESS_ERROR = "PROCESS_ERROR"
     RUNNER_EXCEPTION = "RUNNER_EXCEPTION"
 
 
@@ -73,6 +74,7 @@ EMOJIS = {
     TestResult.METADATA_ERROR: "📄",
     TestResult.HARNESS_ERROR: "⚙️",
     TestResult.TIMEOUT_ERROR: "💀",
+    TestResult.PROCESS_ERROR: "💥️",
     TestResult.RUNNER_EXCEPTION: "🐍",
 }
 
@@ -121,6 +123,7 @@ def run_script(js: Path, script: str, timeout: float) -> str:
             shlex.split(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            check=True,
             text=True,
             timeout=timeout,
         )
@@ -152,6 +155,10 @@ def run_test(js: Path, test262: Path, file: Path, timeout: float) -> TestRun:
     script = build_script(test262, file, metadata.get("includes", []))
     try:
         output = run_script(js, script, timeout)
+    except subprocess.CalledProcessError as error:
+        output = error.stdout.strip()
+        if error.returncode < 0:
+            return test_run(TestResult.PROCESS_ERROR)
     except subprocess.TimeoutExpired:
         return test_run(TestResult.TIMEOUT_ERROR)
     except:
