@@ -23,9 +23,11 @@ from tqdm import tqdm
 
 # https://github.com/tc39/test262/blob/master/INTERPRETING.md
 
+METADATA_YAML_REGEX = re.compile(r"/\*---\n((?:.|\n)+)\n---\*/")
 UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX = re.compile(
     r"Uncaught exception: \[(.+)\]", re.MULTILINE
 )
+
 TEST_SCRIPT = """\
 const print = console.log;
 const $262 = {{
@@ -85,17 +87,11 @@ CPU_COUNT = multiprocessing.cpu_count()
 
 
 def get_metadata(test_file: Path) -> Optional[dict]:
-    lines = test_file.resolve().read_text().splitlines()
-    start = None
-    end = None
-    for i, line in enumerate(lines):
-        if line.strip() == "/*---":
-            start = i + 1
-        if line.strip() == "---*/":
-            end = i
-    if start is None or end is None:
-        return None
-    return dict(YAML().load("\n".join(lines[start:end])))
+    contents = test_file.resolve().read_text()
+    if match := re.search(METADATA_YAML_REGEX, contents):
+        metadata_yaml = match.groups()[0]
+        return dict(YAML().load(metadata_yaml))
+    return None
 
 
 def build_script(test262: Path, test_file: Path, includes: Iterable[str]) -> str:
