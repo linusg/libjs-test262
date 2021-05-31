@@ -4,7 +4,7 @@
 
 ## Installation
 
-Install `git`, `cmake`, `ninja`, `gcc`/`clang` and `python3` (3.7+).
+Install `git`, `cmake`, `ninja`, `gcc`/`clang` and `python3` (3.8+).
 
 To install the script's dependencies, run:
 
