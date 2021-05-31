@@ -172,10 +172,10 @@ def run_test(
         output = traceback.format_exc()
         return test_run(TestResult.RUNNER_EXCEPTION)
 
-    error_name_matches = re.findall(
-        UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX, strip_color(output)
-    )
-    error_name = error_name_matches[0] if error_name_matches else None
+    if match := re.search(UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX, strip_color(output)):
+        error_name = match.groups()[0]
+    else:
+        error_name = None
     has_uncaught_exception = "Uncaught exception:" in output
     has_syntax_error = has_uncaught_exception and error_name == "SyntaxError"
     has_harness_error = has_uncaught_exception and (
