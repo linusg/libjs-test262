@@ -131,6 +131,7 @@ def run_script(
             text=True,
             timeout=timeout,
             preexec_fn=limit_memory,
+            errors="ignore",  # strip invalid utf8 code points instead of throwing (to allow for invalid utf-8 tests)
         )
 
 
