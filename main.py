@@ -5,7 +5,6 @@ import json
 import multiprocessing
 import os
 import re
-import shlex
 import signal
 import subprocess
 import traceback
@@ -14,7 +13,6 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Iterable, List, Optional
 
 from colors import strip_color
@@ -119,20 +117,17 @@ def run_script(
             resource.RLIMIT_AS, (memory_limit * 1024 * 1024, resource.RLIM_INFINITY)
         )
 
-    with NamedTemporaryFile(mode="w", suffix="js") as tmp_file:
-        tmp_file.write(script)
-        tmp_file.flush()
-        cmd = f"{js} {tmp_file.name}"
-        return subprocess.run(
-            shlex.split(cmd),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=True,
-            text=True,
-            timeout=timeout,
-            preexec_fn=limit_memory,
-            errors="ignore",  # strip invalid utf8 code points instead of throwing (to allow for invalid utf-8 tests)
-        )
+    return subprocess.run(
+        [js, "/dev/stdin"],
+        input=script,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=True,
+        text=True,
+        timeout=timeout,
+        preexec_fn=limit_memory,
+        errors="ignore",  # strip invalid utf8 code points instead of throwing (to allow for invalid utf-8 tests)
+    )
 
 
 def run_test(
