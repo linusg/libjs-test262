@@ -79,7 +79,7 @@ def run_script(
 
     harness_files = ["assert.js", "sta.js", *includes]
     command = [
-        libjs_test262_runner,
+        str(libjs_test262_runner),
         *[str((test262_root / "harness" / file).resolve()) for file in harness_files],
     ]
     return subprocess.run(
