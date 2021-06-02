@@ -125,15 +125,15 @@ def run_test(
     if any(feature in UNSUPPORTED_FEATURES for feature in metadata.get("features", [])):
         return test_run(TestResult.SKIPPED)
 
+    flags = metadata.get("flags", [])
+    includes = metadata.get("includes", [])
+    if "async" in flags:
+        includes.append("doneprintHandle.js")
+
     try:
         script = file.read_text()
         process = run_script(
-            libjs_test262_runner,
-            test262_root,
-            script,
-            metadata.get("includes", []),
-            timeout,
-            memory_limit,
+            libjs_test262_runner, test262_root, script, includes, timeout, memory_limit
         )
         output = process.stdout.strip()
         result = json.loads(output, strict=False)
@@ -175,6 +175,13 @@ def run_test(
 
     if result.get("error"):
         return failure()
+
+    if "async" in flags:
+        result_output = result.get("output", "")
+        return success_if(
+            "Test262:AsyncTestComplete" in result_output
+            and "Test262:AsyncTestFailure" not in result_output
+        )
 
     return success()
 

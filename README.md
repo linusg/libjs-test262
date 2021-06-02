@@ -66,9 +66,8 @@ optional arguments:
 ## Current status
 
 Various tests run to completion and yield correct results. However some
-required functionality is not implemented yet, namely the `flags` metadata
-value is completely ignored, meaning asynchronous tests (e.g. `Promise`) as
-well as strict mode/non-strict mode tests will currently lead to false
-positives or false negatives.
+required functionality is not implemented yet, namely proper handling of strict
+mode vs. non-strict mode tests, will currently lead to false positives or false
+negatives.
 
 Few of the test harness files do not parse yet or generate runtime errors.
