@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Literal, Optional
 
 from ruamel.yaml import YAML
 from tqdm import tqdm
@@ -40,6 +40,31 @@ class TestRun:
     output: str
 
 
+@dataclass
+class Metadata:
+    features: List[str]
+    flags: List[
+        Literal[
+            "onlyStrict",
+            "noStrict",
+            "module",
+            "raw",
+            "async",
+            "generated",
+            "CanBlockIsFalse",
+        ]
+    ]
+    includes: List[str]
+    locale: List[str]
+    negative: Optional[NegativeMetadata]
+
+
+@dataclass
+class NegativeMetadata:
+    phase: Literal["parse", "early", "resolution", "runtime"]
+    type: str
+
+
 EMOJIS = {
     TestResult.SUCCESS: "✅",
     TestResult.FAILURE: "❌",
@@ -56,11 +81,23 @@ UNSUPPORTED_FEATURES = ["IsHTMLDDA"]
 CPU_COUNT = multiprocessing.cpu_count()
 
 
-def get_metadata(test_file: Path) -> Optional[dict]:
+def get_metadata(test_file: Path) -> Optional[Metadata]:
     contents = test_file.resolve().read_text()
     if match := re.search(METADATA_YAML_REGEX, contents):
         metadata_yaml = match.groups()[0]
-        return dict(YAML().load(metadata_yaml))
+        metadata = dict(YAML().load(metadata_yaml))
+        return Metadata(
+            features=metadata.get("features", []),
+            flags=metadata.get("flags", []),
+            includes=metadata.get("includes", []),
+            locale=metadata.get("locale", []),
+            negative=NegativeMetadata(
+                phase=metadata["negative"]["phase"],
+                type=metadata["negative"]["type"],
+            )
+            if "negative" in metadata
+            else None,
+        )
     return None
 
 
@@ -122,12 +159,11 @@ def run_test(
     if metadata is None:
         return test_run(TestResult.METADATA_ERROR)
 
-    if any(feature in UNSUPPORTED_FEATURES for feature in metadata.get("features", [])):
+    if any(feature in UNSUPPORTED_FEATURES for feature in metadata.features):
         return test_run(TestResult.SKIPPED)
 
-    flags = metadata.get("flags", [])
-    includes = metadata.get("includes", [])
-    if "async" in flags:
+    includes = metadata.includes
+    if "async" in metadata.flags:
         includes.append("doneprintHandle.js")
 
     try:
@@ -152,31 +188,27 @@ def run_test(
     if result.get("harness_error") is True:
         return test_run(TestResult.HARNESS_ERROR)
 
-    if metadata.get("negative") is not None:
-        expected_phase = metadata["negative"]["phase"]
-        expected_type = metadata["negative"]["type"]
+    if negative := metadata.negative:
         error = result.get("error")
         if not error:
             return failure()
-        actual_phase = error.get("phase")
-        actual_type = error.get("type")
-        if expected_phase == "parse" or expected_phase == "early":
+        phase = error.get("phase")
+        type_ = error.get("type")
+        if negative.phase == "parse" or negative.phase == "early":
             # No distinction between parse and early in the LibJS parser.
-            return success_if(actual_phase == "parse")
-        elif expected_phase == "runtime":
-            return success_if(
-                actual_phase == "runtime" and actual_type == expected_type
-            )
-        elif expected_phase == "resolution":
+            return success_if(phase == "parse")
+        elif negative.phase == "runtime":
+            return success_if(phase == "runtime" and type_ == negative.type)
+        elif negative.phase == "resolution":
             # No modules yet :^)
             return failure()
         else:
-            raise Exception(f"Unexpected phase '{expected_phase}'")
+            raise Exception(f"Unexpected phase '{negative.phase}'")
 
     if result.get("error"):
         return failure()
 
-    if "async" in flags:
+    if "async" in metadata.flags:
         result_output = result.get("output", "")
         return success_if(
             "Test262:AsyncTestComplete" in result_output
