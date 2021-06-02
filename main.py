@@ -137,8 +137,8 @@ def run_test(
         )
         output = process.stdout.strip()
         result = json.loads(output, strict=False)
-    except subprocess.CalledProcessError as error:
-        output = error.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        output = e.stdout.strip()
         return test_run(TestResult.PROCESS_ERROR)
     except subprocess.TimeoutExpired:
         return test_run(TestResult.TIMEOUT_ERROR)
