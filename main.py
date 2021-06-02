@@ -11,10 +11,10 @@ import json
 import multiprocessing
 import os
 import re
+import resource
 import signal
 import subprocess
 import traceback
-import resource
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
