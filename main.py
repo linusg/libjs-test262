@@ -19,7 +19,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Literal, Optional
+from typing import Any, Iterable, Literal
 
 from ruamel.yaml import YAML
 from tqdm import tqdm
@@ -62,7 +62,7 @@ class Metadata:
     ]
     includes: list[str]
     locale: list[str]
-    negative: Optional[NegativeMetadata]
+    negative: NegativeMetadata | None
 
 
 @dataclass
@@ -87,7 +87,7 @@ UNSUPPORTED_FEATURES = ["IsHTMLDDA"]
 CPU_COUNT = multiprocessing.cpu_count()
 
 
-def get_metadata(test_file: Path) -> Optional[Metadata]:
+def get_metadata(test_file: Path) -> Metadata | None:
     contents = test_file.resolve().read_text()
     if match := re.search(METADATA_YAML_REGEX, contents):
         metadata_yaml = match.groups()[0]
