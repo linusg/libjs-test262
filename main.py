@@ -19,7 +19,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Literal, Optional
+from typing import Any, Iterable, Literal, Optional
 
 from ruamel.yaml import YAML
 from tqdm import tqdm
@@ -48,8 +48,8 @@ class TestRun:
 
 @dataclass
 class Metadata:
-    features: List[str]
-    flags: List[
+    features: list[str]
+    flags: list[
         Literal[
             "onlyStrict",
             "noStrict",
@@ -60,8 +60,8 @@ class Metadata:
             "CanBlockIsFalse",
         ]
     ]
-    includes: List[str]
-    locale: List[str]
+    includes: list[str]
+    locale: list[str]
     negative: Optional[NegativeMetadata]
 
 
@@ -242,8 +242,8 @@ class Runner:
         self.memory_limit = memory_limit
         self.silent = silent
         self.verbose = verbose
-        self.files: List[Path] = []
-        self.result_map: Dict[str, dict] = {}
+        self.files: list[Path] = []
+        self.result_map: dict[str, dict] = {}
         self.total_count = 0
         self.progress = 0
 
