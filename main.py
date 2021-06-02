@@ -196,7 +196,7 @@ def run_test(
         type_ = error.get("type")
         if negative.phase == "parse" or negative.phase == "early":
             # No distinction between parse and early in the LibJS parser.
-            return success_if(phase == "parse")
+            return success_if(phase == "parse" and type_ == negative.type)
         elif negative.phase == "runtime":
             return success_if(phase == "runtime" and type_ == negative.type)
         elif negative.phase == "resolution":
