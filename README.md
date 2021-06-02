@@ -14,22 +14,28 @@ pip3 install -r requirements.txt
 
 Dependencies are:
 
-- `ansicolors` for stripping color codes from the output
 - `ruamel.yaml` for parsing the test's YAML metadata
 - `tqdm` for displaying a progress bar
 
 ## Usage
 
-To clone test262, clone SerenityOS and build `js` (standalone as part of Lagom), run:
+To clone test262, clone SerenityOS, build Lagom, and build `libjs-test262-runner`, run:
 
 ```console
 ./setup.sh
 ```
 
-If this succeeds, run:
+The repositories will only be cloned if they don't exist yet locally, so you
+can use this script for development of the test runner as well.
+
+If `SERENITY_SOURCE_DIR` is set, it will be used instead. However, if the Lagom
+build directory already exists, the script will not touch your build in that
+case, so you'll need to build `libLagom.a` yourself.
+
+Once that's done, run:
 
 ```console
-python3 main.py --js ./serenity/Build/js --test262 ./test262/
+python3 main.py --libjs-test262-runner ./Build/libjs-test262-runner --test262-root ./test262/
 ```
 
 ## Options
@@ -41,8 +47,9 @@ Run the test262 ECMAScript test suite with SerenityOS's LibJS
 
 optional arguments:
   -h, --help            show this help message and exit
-  -j PATH, --js PATH    path to the SerenityOS Lagom 'js' binary
-  -t PATH, --test262 PATH
+  -j PATH, --libjs-test262-runner PATH
+                        path to the 'libjs-test262-runner' binary
+  -t PATH, --test262-root PATH
                         path to the 'test262' directory
   -p PATTERN, --pattern PATTERN
                         glob pattern used for test file searching (defaults to test/**/*.js)
@@ -59,10 +66,10 @@ optional arguments:
 ## Current status
 
 Various tests run to completion and yield correct results. However some
-required functionality is not implemented yet, namely the `flags`
-metadata value is completely ignored, meaning asynchronous tests (e.g.
-`Promise`) as well as strict mode/non-strict mode tests will currently
-lead to false positives or false negatives.
+required functionality is not implemented yet, namely the `flags` metadata
+value is completely ignored, meaning asynchronous tests (e.g. `Promise`) as
+well as strict mode/non-strict mode tests will currently lead to false
+positives or false negatives.
 
 Few of the test harness files do not parse yet or generate runtime errors.
 

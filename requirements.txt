@@ -1,3 +1,2 @@
-ansicolors
 ruamel.yaml
 tqdm
