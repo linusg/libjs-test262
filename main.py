@@ -15,39 +15,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from colors import strip_color
 from ruamel.yaml import YAML
 from tqdm import tqdm
 
-# https://github.com/tc39/test262/blob/master/INTERPRETING.md
 
 METADATA_YAML_REGEX = re.compile(r"/\*---\n((?:.|\n)+)\n---\*/")
-UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX = re.compile(
-    r"Uncaught exception: \[(.+)\]", re.MULTILINE
-)
-
-TEST_SCRIPT = """\
-const print = console.log;
-const $262 = {{
-    /* createRealm: ?, */
-    /* detachArrayBuffer: ?, */
-    /* evalScript: ?, */
-    gc: gc,
-    global: globalThis,
-    agent: {{ /* ... */ }}
-}};
-try {{
-    load('{harness_assert_path}');
-    load('{harness_sta_path}');
-    {load_includes}
-}} catch (e) {{
-    // Output is matched by the test runner to distinguish harness
-    // syntax/runtime errors from errors in the actual test file.
-    console.log('Failed to load test harness scripts');
-    throw e;
-}}
-load('{test_file_path}');
-"""
 
 
 class TestResult(str, Enum):
@@ -92,33 +64,26 @@ def get_metadata(test_file: Path) -> Optional[dict]:
     return None
 
 
-def build_script(test262: Path, test_file: Path, includes: Iterable[str]) -> str:
-    harness_assert_path = (test262 / "harness" / "assert.js").resolve()
-    harness_sta_path = (test262 / "harness" / "sta.js").resolve()
-    test_file_path = test_file.resolve()
-    load_includes = ""
-    for include in includes:
-        include_path = (test262 / "harness" / include).resolve()
-        load_includes += f"load('{include_path}');\n"
-    script = TEST_SCRIPT.format(
-        harness_assert_path=harness_assert_path,
-        harness_sta_path=harness_sta_path,
-        load_includes=load_includes,
-        test_file_path=test_file_path,
-    )
-    return script
-
-
 def run_script(
-    js: Path, script: str, timeout: float, memory_limit: int
+    libjs_test262_runner: Path,
+    test262_root: Path,
+    script: str,
+    includes: Iterable[str],
+    timeout: float,
+    memory_limit: int,
 ) -> subprocess.CompletedProcess:
     def limit_memory():
         resource.setrlimit(
             resource.RLIMIT_AS, (memory_limit * 1024 * 1024, resource.RLIM_INFINITY)
         )
 
+    harness_files = ["assert.js", "sta.js", *includes]
+    command = [
+        libjs_test262_runner,
+        *[str((test262_root / "harness" / file).resolve()) for file in harness_files],
+    ]
     return subprocess.run(
-        [js, "/dev/stdin"],
+        command,
         input=script,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -131,8 +96,14 @@ def run_script(
 
 
 def run_test(
-    js: Path, test262: Path, file: Path, timeout: float, memory_limit: int
+    libjs_test262_runner: Path,
+    test262_root: Path,
+    file: Path,
+    timeout: float,
+    memory_limit: int,
 ) -> TestRun:
+    # https://github.com/tc39/test262/blob/master/INTERPRETING.md
+
     output = ""
 
     def test_run(result: TestResult) -> TestRun:
@@ -154,48 +125,55 @@ def run_test(
     if any(feature in UNSUPPORTED_FEATURES for feature in metadata.get("features", [])):
         return test_run(TestResult.SKIPPED)
 
-    script = build_script(test262, file, metadata.get("includes", []))
     try:
-        process = run_script(js, script, timeout, memory_limit)
+        script = file.read_text()
+        process = run_script(
+            libjs_test262_runner,
+            test262_root,
+            script,
+            metadata.get("includes", []),
+            timeout,
+            memory_limit,
+        )
         output = process.stdout.strip()
+        result = json.loads(output, strict=False)
     except subprocess.CalledProcessError as error:
         output = error.stdout.strip()
-        if error.returncode < 0:
-            return test_run(TestResult.PROCESS_ERROR)
+        return test_run(TestResult.PROCESS_ERROR)
     except subprocess.TimeoutExpired:
         return test_run(TestResult.TIMEOUT_ERROR)
     except:
         output = traceback.format_exc()
         return test_run(TestResult.RUNNER_EXCEPTION)
 
-    if match := re.search(UNCAUGHT_EXCEPTION_ERROR_NAME_REGEX, strip_color(output)):
-        error_name = match.groups()[0]
-    else:
-        error_name = None
-    has_uncaught_exception = "Uncaught exception:" in output
-    has_syntax_error = has_uncaught_exception and error_name == "SyntaxError"
-    has_harness_error = has_uncaught_exception and (
-        "Failed to open" in output or "Failed to load test harness scripts" in output
-    )
+    # Prettify JSON output for verbose printing
+    output = json.dumps(result, indent=2)
 
-    if has_harness_error:
+    if result.get("harness_error") is True:
         return test_run(TestResult.HARNESS_ERROR)
 
     if metadata.get("negative") is not None:
-        phase = metadata["negative"]["phase"]
-        type_ = metadata["negative"]["type"]
-        if phase == "parse" or phase == "early":
-            # FIXME: This shouldn't apply to a runtime SyntaxError
-            return success_if(has_syntax_error)
-        elif phase == "runtime":
-            return success_if(error_name == type_)
-        elif phase == "resolution":
+        expected_phase = metadata["negative"]["phase"]
+        expected_type = metadata["negative"]["type"]
+        error = result.get("error")
+        if not error:
+            return failure()
+        actual_phase = error.get("phase")
+        actual_type = error.get("type")
+        if expected_phase == "parse" or expected_phase == "early":
+            # No distinction between parse and early in the LibJS parser.
+            return success_if(actual_phase == "parse")
+        elif expected_phase == "runtime":
+            return success_if(
+                actual_phase == "runtime" and actual_type == expected_type
+            )
+        elif expected_phase == "resolution":
             # No modules yet :^)
             return failure()
         else:
-            raise Exception(f"Unexpected phase '{phase}'")
+            raise Exception(f"Unexpected phase '{expected_phase}'")
 
-    if has_syntax_error or has_uncaught_exception:
+    if result.get("error"):
         return failure()
 
     return success()
@@ -204,16 +182,16 @@ def run_test(
 class Runner:
     def __init__(
         self,
-        js: Path,
-        test262: Path,
+        libjs_test262_runner: Path,
+        test262_root: Path,
         concurrency: int,
         timeout: int,
         memory_limit: int,
         silent: bool = False,
         verbose: bool = False,
     ) -> None:
-        self.js = js
-        self.test262 = test262
+        self.libjs_test262_runner = libjs_test262_runner
+        self.test262_root = test262_root
         self.concurrency = concurrency
         self.timeout = timeout
         self.memory_limit = memory_limit
@@ -235,7 +213,7 @@ class Runner:
         else:
             self.files = [
                 path.resolve()
-                for path in self.test262.glob(pattern)
+                for path in self.test262_root.glob(pattern)
                 if path.is_file() and not path.stem.endswith("FIXTURE")
             ]
         self.files.sort()
@@ -245,7 +223,7 @@ class Runner:
 
     def build_result_map(self) -> None:
         for file in self.files:
-            directory = file.relative_to(self.test262).parent
+            directory = file.relative_to(self.test262_root).parent
             counter = self.result_map
             for segment in directory.parts:
                 if not segment in counter:
@@ -257,7 +235,7 @@ class Runner:
                 counter = counter[segment]["children"]
 
     def count_result(self, test_run: TestRun) -> None:
-        directory = test_run.file.relative_to(self.test262).parent
+        directory = test_run.file.relative_to(self.test262_root).parent
         counter = self.result_map
         for segment in directory.parts:
             counter[segment]["results"][test_run.result] += 1
@@ -284,8 +262,8 @@ class Runner:
 
     def process(self, file: Path) -> TestRun:
         return run_test(
-            self.js,
-            self.test262,
+            self.libjs_test262_runner,
+            self.test262_root,
             file,
             timeout=self.timeout,
             memory_limit=self.memory_limit,
@@ -329,14 +307,14 @@ def main() -> None:
     )
     parser.add_argument(
         "-j",
-        "--js",
+        "--libjs-test262-runner",
         required=True,
         metavar="PATH",
-        help="path to the SerenityOS Lagom 'js' binary",
+        help="path to the 'libjs-test262-runner' binary",
     )
     parser.add_argument(
         "-t",
-        "--test262",
+        "--test262-root",
         required=True,
         metavar="PATH",
         help="path to the 'test262' directory",
@@ -382,8 +360,8 @@ def main() -> None:
     args = parser.parse_args()
 
     runner = Runner(
-        Path(args.js).resolve(),
-        Path(args.test262).resolve(),
+        Path(args.libjs_test262_runner).resolve(),
+        Path(args.test262_root).resolve(),
         args.concurrency,
         args.timeout,
         args.memory_limit,

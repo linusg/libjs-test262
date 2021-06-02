@@ -140,6 +140,7 @@ cython_debug/
 # libjs-test262
 serenity/
 test262/
+Build/
 
 # PyCharm
 .idea/
