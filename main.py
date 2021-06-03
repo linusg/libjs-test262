@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import datetime
 import json
 import multiprocessing
 import os
@@ -260,6 +261,7 @@ class Runner:
         self.result_map: dict[str, dict] = {}
         self.total_count = 0
         self.progress = 0
+        self.duration = datetime.timedelta()
 
     def log(self, message: str) -> None:
         if not self.silent:
@@ -341,6 +343,7 @@ class Runner:
             progressbar = tqdm(
                 total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
             )
+        start = datetime.datetime.now()
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=self.concurrency
         ) as executor:
@@ -359,9 +362,11 @@ class Runner:
                     progressbar.update(1)
                 self.progress += 1
 
+        end = datetime.datetime.now()
+        self.duration = end - start
         if not self.silent:
             progressbar.close()
-        self.log("Finished running tests.")
+        self.log(f"Finished running tests in {self.duration}.")
 
 
 def main() -> None:
