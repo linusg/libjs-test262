@@ -172,21 +172,20 @@ def run_test(
     if "async" in metadata.flags:
         includes.append("doneprintHandle.js")
 
-    try:
         script = file.read_text()
+
+    try:
         process = run_script(
             libjs_test262_runner, test262_root, script, includes, timeout, memory_limit
         )
-        output = process.stdout.strip()
-        result = json.loads(output, strict=False)
     except subprocess.CalledProcessError as e:
         output = e.stdout.strip()
         return test_run(TestResult.PROCESS_ERROR)
     except subprocess.TimeoutExpired:
         return test_run(TestResult.TIMEOUT_ERROR)
-    except:
-        output = traceback.format_exc()
-        return test_run(TestResult.RUNNER_EXCEPTION)
+
+    output = process.stdout.strip()
+    result = json.loads(output, strict=False)
 
     # Prettify JSON output for verbose printing
     output = json.dumps(result, indent=2)
@@ -306,6 +305,7 @@ class Runner:
             print_tree(v, k, 0)
 
     def process(self, file: Path) -> TestRun:
+        try:
         return run_test(
             self.libjs_test262_runner,
             self.test262_root,
@@ -313,6 +313,10 @@ class Runner:
             timeout=self.timeout,
             memory_limit=self.memory_limit,
         )
+        except:
+            return TestRun(
+                file, result=TestResult.RUNNER_EXCEPTION, output=traceback.format_exc()
+            )
 
     def run(self) -> None:
         if not self.files:
