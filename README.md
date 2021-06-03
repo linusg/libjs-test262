@@ -65,9 +65,7 @@ optional arguments:
 
 ## Current status
 
-Various tests run to completion and yield correct results. However some
-required functionality is not implemented yet, namely proper handling of strict
-mode vs. non-strict mode tests, will currently lead to false positives or false
-negatives.
-
-Few of the test harness files do not parse yet or generate runtime errors.
+Most of the tests run to completion and yield correct results. Few of the test
+harness files do not parse yet or generate runtime errors, those are listed in
+the results under a separate category, as are tests that fail to parse their
+metadata, time out, or crash the engine (todo assertion failures, mostly).
