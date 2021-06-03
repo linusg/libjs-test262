@@ -144,6 +144,7 @@ def run_test(
     file: Path,
     timeout: float,
     memory_limit: int,
+    strict_mode: bool | None = None,
 ) -> TestRun:
     # https://github.com/tc39/test262/blob/master/INTERPRETING.md
 
@@ -168,11 +169,25 @@ def run_test(
     if any(feature in UNSUPPORTED_FEATURES for feature in metadata.features):
         return test_run(TestResult.SKIPPED)
 
+    if strict_mode is None:
+        args = (libjs_test262_runner, test262_root, file, timeout, memory_limit)
+        if "onlyStrict" in metadata.flags:
+            return run_test(*args, strict_mode=True)
+        elif "noStrict" in metadata.flags or "raw" in metadata.flags:
+            return run_test(*args, strict_mode=False)
+        elif (
+            first_run := run_test(*args, strict_mode=True)
+        ).result != TestResult.SUCCESS:
+            return first_run
+        return run_test(*args, strict_mode=False)
+
     includes = metadata.includes
     if "async" in metadata.flags:
         includes.append("doneprintHandle.js")
 
-        script = file.read_text()
+    script = file.read_text()
+    if strict_mode:
+        script = f'"use strict";\n{script}'
 
     try:
         process = run_script(
@@ -306,13 +321,13 @@ class Runner:
 
     def process(self, file: Path) -> TestRun:
         try:
-        return run_test(
-            self.libjs_test262_runner,
-            self.test262_root,
-            file,
-            timeout=self.timeout,
-            memory_limit=self.memory_limit,
-        )
+            return run_test(
+                self.libjs_test262_runner,
+                self.test262_root,
+                file,
+                timeout=self.timeout,
+                memory_limit=self.memory_limit,
+            )
         except:
             return TestRun(
                 file, result=TestResult.RUNNER_EXCEPTION, output=traceback.format_exc()
