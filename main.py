@@ -440,7 +440,11 @@ def main() -> None:
     runner.find_tests(args.pattern)
     runner.run()
     if args.json:
-        print(json.dumps(runner.result_map))
+        data = {
+            "duration": runner.duration.total_seconds(),
+            "results": runner.result_map,
+        }
+        print(json.dumps(data))
     else:
         runner.report()
 
