@@ -25,7 +25,6 @@ from typing import Any, Iterable, Literal
 from ruamel.yaml import YAML
 from tqdm import tqdm
 
-
 METADATA_YAML_REGEX = re.compile(r"/\*---\n((?:.|\n)+)\n---\*/")
 
 
@@ -45,6 +44,7 @@ class TestRun:
     file: Path
     result: TestResult
     output: str
+    strict_mode: bool | None
 
 
 @dataclass
@@ -152,7 +152,7 @@ def run_test(
     output = ""
 
     def test_run(result: TestResult) -> TestRun:
-        return TestRun(file, result, output)
+        return TestRun(file, result, output, strict_mode)
 
     def failed() -> TestRun:
         return test_run(TestResult.FAILED)
@@ -332,7 +332,10 @@ class Runner:
             )
         except:
             return TestRun(
-                file, result=TestResult.RUNNER_EXCEPTION, output=traceback.format_exc()
+                file,
+                result=TestResult.RUNNER_EXCEPTION,
+                output=traceback.format_exc(),
+                strict_mode=None,
             )
 
     def run(self) -> None:
@@ -352,7 +355,10 @@ class Runner:
                 test_run = future.result()
                 self.count_result(test_run)
                 if self.verbose:
-                    print(f"{EMOJIS[test_run.result]} {test_run.file}")
+                    print(
+                        f"{EMOJIS[test_run.result]} {test_run.file}"
+                        f"{' (strict mode)' if test_run.strict_mode else ''}"
+                    )
                     if test_run.output:
                         print()
                         print(test_run.output)
