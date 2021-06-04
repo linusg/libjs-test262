@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 SERENITY_SOURCE_DIR="${SERENITY_SOURCE_DIR:-serenity}"
 TEST262_SOURCE_DIR="${TEST262_SOURCE_DIR:-test262}"
