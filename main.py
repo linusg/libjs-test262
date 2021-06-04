@@ -30,8 +30,8 @@ METADATA_YAML_REGEX = re.compile(r"/\*---\n((?:.|\n)+)\n---\*/")
 
 
 class TestResult(str, Enum):
-    SUCCESS = "SUCCESS"
-    FAILURE = "FAILURE"
+    PASSED = "PASSED"
+    FAILED = "FAILED"
     SKIPPED = "SKIPPED"
     METADATA_ERROR = "METADATA_ERROR"
     HARNESS_ERROR = "HARNESS_ERROR"
@@ -73,8 +73,8 @@ class NegativeMetadata:
 
 
 EMOJIS = {
-    TestResult.SUCCESS: "✅",
-    TestResult.FAILURE: "❌",
+    TestResult.PASSED: "✅",
+    TestResult.FAILED: "❌",
     TestResult.SKIPPED: "⚠️",
     TestResult.METADATA_ERROR: "📄",
     TestResult.HARNESS_ERROR: "⚙️",
@@ -154,14 +154,14 @@ def run_test(
     def test_run(result: TestResult) -> TestRun:
         return TestRun(file, result, output)
 
-    def failure() -> TestRun:
-        return test_run(TestResult.FAILURE)
+    def failed() -> TestRun:
+        return test_run(TestResult.FAILED)
 
-    def success() -> TestRun:
-        return test_run(TestResult.SUCCESS)
+    def passed() -> TestRun:
+        return test_run(TestResult.PASSED)
 
-    def success_if(condition: Any) -> TestRun:
-        return test_run(TestResult.SUCCESS if condition else TestResult.FAILURE)
+    def passed_if(condition: Any) -> TestRun:
+        return test_run(TestResult.PASSED if condition else TestResult.FAILED)
 
     metadata = get_metadata(file)
     if metadata is None:
@@ -178,7 +178,7 @@ def run_test(
             return run_test(*args, strict_mode=False)
         elif (
             first_run := run_test(*args, strict_mode=True)
-        ).result != TestResult.SUCCESS:
+        ).result != TestResult.PASSED:
             return first_run
         return run_test(*args, strict_mode=False)
 
@@ -212,31 +212,31 @@ def run_test(
     if negative := metadata.negative:
         error = result.get("error")
         if not error:
-            return failure()
+            return failed()
         phase = error.get("phase")
         type_ = error.get("type")
         if negative.phase == "parse" or negative.phase == "early":
             # No distinction between parse and early in the LibJS parser.
-            return success_if(phase == "parse" and type_ == negative.type)
+            return passed_if(phase == "parse" and type_ == negative.type)
         elif negative.phase == "runtime":
-            return success_if(phase == "runtime" and type_ == negative.type)
+            return passed_if(phase == "runtime" and type_ == negative.type)
         elif negative.phase == "resolution":
             # No modules yet :^)
-            return failure()
+            return failed()
         else:
             raise Exception(f"Unexpected phase '{negative.phase}'")
 
     if result.get("error"):
-        return failure()
+        return failed()
 
     if "async" in metadata.flags:
         result_output = result.get("output", "")
-        return success_if(
+        return passed_if(
             "Test262:AsyncTestComplete" in result_output
             and "Test262:AsyncTestFailure" not in result_output
         )
 
-    return success()
+    return passed()
 
 
 class Runner:
@@ -310,7 +310,7 @@ class Runner:
                     results += f"{EMOJIS[k]} {v:<5} "
             results += "]"
             count = tree["count"]
-            passed = tree["results"][TestResult.SUCCESS]
+            passed = tree["results"][TestResult.PASSED]
             percentage = (passed / count) * 100
             pad = " " * (80 - len(path))
             print(f"{path}{pad}{passed:>5}/{count:<5} ({percentage:6.2f}%) {results} ")
