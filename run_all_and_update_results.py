@@ -72,11 +72,15 @@ def main() -> None:
     results_json = Path(args.results_json)
 
     if results_json.exists():
+        print(f"Reading existing results from {results_json}...")
         results = json.loads(results_json.read_text())
     else:
+        print(f"Creating new results file at {results_json}...")
         results_json.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
         results_json.touch(mode=0o644)
         results = []
+
+    print(f"Existing test results: {len(results)}")
 
     commit_timestamp = get_git_commit_timestamp(serenity)
     run_timestamp = int(time.time())
@@ -104,6 +108,7 @@ def main() -> None:
         )
         sys.exit(1)
 
+    print("Running test262-parser-tests...")
     test_js_output = json.loads(
         run_command(
             f"{serenity_test_js} --test262-parser-tests {test262_parser_tests} --json",
@@ -112,6 +117,7 @@ def main() -> None:
     )
     test_js_results = test_js_output["results"]["tests"]
 
+    print("Running test262...")
     libjs_test262_output = json.loads(
         # This is not the way, but I can't be bothered to import this stuff. :^)
         run_command(
@@ -159,6 +165,10 @@ def main() -> None:
             },
         },
     }
+
+    print("Done. New test result:")
+    print(json.dumps(result))
+
     results.append(result)
     results_json.write_text(f"{json.dumps(results)}\n")
 
