@@ -170,7 +170,7 @@ def main() -> None:
     print(json.dumps(result))
 
     results.append(result)
-    results_json.write_text(f"{json.dumps(results)}\n")
+    results_json.write_text(f"{json.dumps(results, separators=(',', ':'))}\n")
 
 
 if __name__ == "__main__":
