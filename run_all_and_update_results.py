@@ -74,7 +74,7 @@ def main() -> None:
     if results_json.exists():
         results = json.loads(results_json.read_text())
     else:
-        results_json.parent.mkdir(mode=0o755, parents=True, exists_ok=True)
+        results_json.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
         results_json.touch(mode=0o644)
         results = []
 
