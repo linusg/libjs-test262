@@ -125,7 +125,6 @@ def main() -> None:
             f"--libjs-test262-runner {libjs_test262_runner} "
             f"--test262 {test262} "
             "--silent --json"
-            # " -p 'test/built-ins/Boolean/**/*'"
         )
     )
     libjs_test262_results = libjs_test262_output["results"]["test"]["results"]
