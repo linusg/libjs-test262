@@ -25,7 +25,9 @@ from typing import Any, Iterable, Literal
 from ruamel.yaml import YAML
 from tqdm import tqdm
 
-METADATA_YAML_REGEX = re.compile(r"/\*---\n((?:.|\n)+)\n---\*/")
+# \s* after opening and before closing marker as some (2 as of
+# 2021-06-06) tests have trailing /leading whitespace there.
+METADATA_YAML_REGEX = re.compile(r"/\*---\s*\n((?:.|\n)+)\n\s*---\*/")
 
 
 class TestResult(str, Enum):
