@@ -206,7 +206,7 @@ def run_test(
     result = json.loads(output, strict=False)
 
     # Prettify JSON output for verbose printing
-    output = json.dumps(result, indent=2)
+    output = json.dumps(result, indent=2, ensure_ascii=False)
 
     if result.get("harness_error") is True:
         return test_run(TestResult.HARNESS_ERROR)
