@@ -24,5 +24,6 @@ private:
     AgentObject* m_agent { nullptr };
 
     JS_DECLARE_NATIVE_FUNCTION(create_realm);
+    JS_DECLARE_NATIVE_FUNCTION(detach_array_buffer);
     JS_DECLARE_NATIVE_FUNCTION(eval_script);
 };
