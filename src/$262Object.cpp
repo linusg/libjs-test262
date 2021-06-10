@@ -25,8 +25,10 @@ void $262Object::initialize(JS::GlobalObject& global_object)
     m_agent = vm().heap().allocate<AgentObject>(global_object, global_object);
 
     define_native_function("evalScript", eval_script, 1);
+
+    define_property("agent", m_agent);
     define_property("gc", global_object.get("gc"));
-    define_property("global", this);
+    define_property("global", &global_object);
     // TODO: createRealm
     // TODO: detachArrayBuffer
 }
