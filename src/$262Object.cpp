@@ -6,6 +6,7 @@
 
 #include "$262Object.h"
 #include "AgentObject.h"
+#include "GlobalObject.h"
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Interpreter.h>
 #include <LibJS/Lexer.h>
@@ -24,12 +25,12 @@ void $262Object::initialize(JS::GlobalObject& global_object)
 
     m_agent = vm().heap().allocate<AgentObject>(global_object, global_object);
 
+    define_native_function("createRealm", create_realm, 0);
     define_native_function("evalScript", eval_script, 1);
 
     define_property("agent", m_agent);
     define_property("gc", global_object.get("gc"));
     define_property("global", &global_object);
-    // TODO: createRealm
     // TODO: detachArrayBuffer
 }
 
@@ -37,6 +38,13 @@ void $262Object::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_agent);
+}
+
+JS_DEFINE_NATIVE_FUNCTION($262Object::create_realm)
+{
+    auto realm = vm.heap().allocate_without_global_object<GlobalObject>();
+    realm->initialize_global_object();
+    return JS::Value(realm->$262());
 }
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
