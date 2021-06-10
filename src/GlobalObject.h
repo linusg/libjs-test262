@@ -17,6 +17,8 @@ public:
     virtual void initialize_global_object() override;
     virtual ~GlobalObject() override = default;
 
+    $262Object* $262() const { return m_$262; }
+
 private:
     virtual void visit_edges(Visitor&) override;
 
