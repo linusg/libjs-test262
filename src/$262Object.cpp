@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -11,6 +12,7 @@
 #include <LibJS/Interpreter.h>
 #include <LibJS/Lexer.h>
 #include <LibJS/Parser.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 
@@ -26,12 +28,12 @@ void $262Object::initialize(JS::GlobalObject& global_object)
     m_agent = vm().heap().allocate<AgentObject>(global_object, global_object);
 
     define_native_function("createRealm", create_realm, 0);
+    define_native_function("detachArrayBuffer", detach_array_buffer, 1);
     define_native_function("evalScript", eval_script, 1);
 
     define_property("agent", m_agent);
     define_property("gc", global_object.get("gc"));
     define_property("global", &global_object);
-    // TODO: detachArrayBuffer
 }
 
 void $262Object::visit_edges(JS::Cell::Visitor& visitor)
@@ -45,6 +47,23 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::create_realm)
     auto realm = vm.heap().allocate_without_global_object<GlobalObject>();
     realm->initialize_global_object();
     return JS::Value(realm->$262());
+}
+
+// 25.1.2.3 DetachArrayBuffer, https://tc39.es/ecma262/#sec-detacharraybuffer
+JS_DEFINE_NATIVE_FUNCTION($262Object::detach_array_buffer)
+{
+    auto array_buffer = vm.argument(0);
+    if (!array_buffer.is_object() || !is<JS::ArrayBuffer>(array_buffer.as_object())) {
+        vm.throw_exception<JS::TypeError>(global_object);
+        return {};
+    }
+    auto& array_buffer_object = static_cast<JS::ArrayBuffer&>(array_buffer.as_object());
+    if (!JS::same_value(array_buffer_object.detach_key(), vm.argument(1))) {
+        vm.throw_exception<JS::TypeError>(global_object);
+        return {};
+    }
+    array_buffer_object.detach_buffer();
+    return JS::js_null();
 }
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
