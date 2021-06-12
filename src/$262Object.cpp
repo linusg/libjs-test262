@@ -27,6 +27,7 @@ void $262Object::initialize(JS::GlobalObject& global_object)
 
     m_agent = vm().heap().allocate<AgentObject>(global_object, global_object);
 
+    define_native_function("clearKeptObjects", clear_kept_objects, 0);
     define_native_function("createRealm", create_realm, 0);
     define_native_function("detachArrayBuffer", detach_array_buffer, 1);
     define_native_function("evalScript", eval_script, 1);
@@ -40,6 +41,12 @@ void $262Object::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_agent);
+}
+
+JS_DEFINE_NATIVE_FUNCTION($262Object::clear_kept_objects)
+{
+    vm.finish_execution_generation();
+    return JS::js_undefined();
 }
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::create_realm)
