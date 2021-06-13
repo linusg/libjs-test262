@@ -85,6 +85,8 @@ EMOJIS = {
     TestResult.RUNNER_EXCEPTION: "🐍",
 }
 
+NON_FAIL_RESULTS = [TestResult.PASSED, TestResult.SKIPPED]
+
 UNSUPPORTED_FEATURES = ["IsHTMLDDA"]
 
 CPU_COUNT = multiprocessing.cpu_count()
@@ -251,6 +253,7 @@ class Runner:
         memory_limit: int,
         silent: bool = False,
         verbose: bool = False,
+        fail_only: bool = False,
     ) -> None:
         self.libjs_test262_runner = libjs_test262_runner
         self.test262_root = test262_root
@@ -259,6 +262,7 @@ class Runner:
         self.memory_limit = memory_limit
         self.silent = silent
         self.verbose = verbose
+        self.fail_only = fail_only
         self.files: list[Path] = []
         self.result_map: dict[str, dict] = {}
         self.total_count = 0
@@ -344,7 +348,8 @@ class Runner:
         if not self.files:
             self.log("No tests to run.")
             return
-        if not self.silent:
+        show_progress = not self.silent
+        if show_progress:
             progressbar = tqdm(
                 total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
             )
@@ -356,7 +361,12 @@ class Runner:
             for future in concurrent.futures.as_completed(futures):
                 test_run = future.result()
                 self.count_result(test_run)
-                if self.verbose:
+                if self.verbose or (
+                    self.fail_only and test_run.result not in NON_FAIL_RESULTS
+                ):
+                    if show_progress:
+                        # prevent progressbars in the middle of verbose results
+                        progressbar.clear()
                     print(
                         f"{EMOJIS[test_run.result]} {test_run.file}"
                         f"{' (strict mode)' if test_run.strict_mode else ''}"
@@ -365,14 +375,15 @@ class Runner:
                         print()
                         print(test_run.output)
                         print()
-                    progressbar.refresh()
-                if not self.silent:
+                    if show_progress:
+                        progressbar.refresh()
+                if show_progress:
                     progressbar.update(1)
                 self.progress += 1
 
         end = datetime.datetime.now()
         self.duration = end - start
-        if not self.silent:
+        if show_progress:
             progressbar.close()
         self.log(f"Finished running tests in {self.duration}.")
 
@@ -434,6 +445,9 @@ def main() -> None:
     logging_group.add_argument(
         "-v", "--verbose", action="store_true", help="print output of test runs"
     )
+    parser.add_argument(
+        "-f", "--fail-only", action="store_true", help="only show failed tests"
+    )
     args = parser.parse_args()
 
     runner = Runner(
@@ -444,6 +458,7 @@ def main() -> None:
         args.memory_limit,
         args.silent,
         args.verbose,
+        args.fail_only,
     )
     runner.find_tests(args.pattern)
     runner.run()
