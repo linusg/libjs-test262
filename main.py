@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright (c) 2020-2021, Linus Groh <linusg@serenityos.org>
 # Copyright (c) 2021, Marcin Gasperowicz <xnooga@gmail.com>
 # Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
