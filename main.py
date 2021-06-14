@@ -253,6 +253,7 @@ class Runner:
         memory_limit: int,
         silent: bool = False,
         verbose: bool = False,
+        per_file: bool = False,
         fail_only: bool = False,
     ) -> None:
         self.libjs_test262_runner = libjs_test262_runner
@@ -262,15 +263,17 @@ class Runner:
         self.memory_limit = memory_limit
         self.silent = silent
         self.verbose = verbose
+        self.per_file = per_file
         self.fail_only = fail_only
         self.files: list[Path] = []
-        self.result_map: dict[str, dict] = {}
+        self.directory_result_map: dict[str, dict] = {}
+        self.file_result_map: dict[str, str] = {}
         self.total_count = 0
         self.progress = 0
         self.duration = datetime.timedelta()
 
     def log(self, message: str) -> None:
-        if not self.silent:
+        if not self.silent and not self.per_file:
             print(message)
 
     def find_tests(self, pattern: str) -> None:
@@ -286,12 +289,14 @@ class Runner:
         self.files.sort()
         self.total_count = len(self.files)
         self.log(f"Found {self.total_count}.")
-        self.build_result_map()
 
-    def build_result_map(self) -> None:
+        if not self.per_file:
+            self.build_directory_result_map()
+
+    def build_directory_result_map(self) -> None:
         for file in self.files:
             directory = file.relative_to(self.test262_root).parent
-            counter = self.result_map
+            counter = self.directory_result_map
             for segment in directory.parts:
                 if not segment in counter:
                     counter[segment] = {"count": 1, "results": {}, "children": {}}
@@ -302,11 +307,15 @@ class Runner:
                 counter = counter[segment]["children"]
 
     def count_result(self, test_run: TestRun) -> None:
-        directory = test_run.file.relative_to(self.test262_root).parent
-        counter = self.result_map
-        for segment in directory.parts:
-            counter[segment]["results"][test_run.result] += 1
-            counter = counter[segment]["children"]
+        relative_file = test_run.file.relative_to(self.test262_root)
+        if self.per_file:
+            self.file_result_map[str(relative_file)] = test_run.result.name
+        else:
+            directory = relative_file.parent
+            counter = self.directory_result_map
+            for segment in directory.parts:
+                counter[segment]["results"][test_run.result] += 1
+                counter = counter[segment]["children"]
 
     def report(self) -> None:
         def print_tree(tree, path, level):
@@ -324,7 +333,7 @@ class Runner:
                 for k, v in tree["children"].items():
                     print_tree(v, path + "/" + k, level + 1)
 
-        for k, v in self.result_map.items():
+        for k, v in self.directory_result_map.items():
             print_tree(v, k, 0)
 
     def process(self, file: Path) -> TestRun:
@@ -435,6 +444,9 @@ def main() -> None:
     parser.add_argument(
         "--json", action="store_true", help="print the test results as JSON"
     )
+    parser.add_argument(
+        "--per-file", action="store_true", help="show per-file results instead of per-directory results"
+    )
     logging_group = parser.add_mutually_exclusive_group()
     logging_group.add_argument(
         "-s",
@@ -458,6 +470,7 @@ def main() -> None:
         args.memory_limit,
         args.silent,
         args.verbose,
+        args.per_file,
         args.fail_only,
     )
     runner.find_tests(args.pattern)
@@ -465,7 +478,7 @@ def main() -> None:
     if args.json:
         data = {
             "duration": runner.duration.total_seconds(),
-            "results": runner.result_map,
+            "results": runner.file_result_map if args.per_file else runner.directory_result_map,
         }
         print(json.dumps(data))
     else:
