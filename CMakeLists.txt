@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(libjs-test262 CXX)
+include(ExternalProject)
 
 if (NOT DEFINED ENV{SERENITY_SOURCE_DIR})
     message(FATAL_ERROR "SERENITY_SOURCE_DIR not set.")
@@ -36,17 +37,19 @@ add_compile_options(-Wwrite-strings)
 add_compile_options(-fno-exceptions)
 
 set(SERENITY_LIBRARIES_DIR ${SERENITY_SOURCE_DIR}/Userland/Libraries)
+set(LAGOM_SOURCE_DIR ${SERENITY_SOURCE_DIR}/Meta/Lagom)
+set(LAGOM_BINARY_DIR ${SERENITY_SOURCE_DIR}/Build/Lagom)
+set(LAGOM_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/Lagom)
 
-# FIXME: I have not idea how to CMake :^)
-if(EXISTS ${SERENITY_SOURCE_DIR}/Build/lagom/libLagom.a)
-    # Lagom-only build with cmake ../../Meta/Lagom
-    set(LIBLAGOM_PATH ${SERENITY_SOURCE_DIR}/Build/lagom/libLagom.a)
-elseif(EXISTS ${SERENITY_SOURCE_DIR}/Build/lagom/Meta/Lagom/libLagom.a)
-    # Full build with cmake ../..
-    set(LIBLAGOM_PATH ${SERENITY_SOURCE_DIR}/Build/lagom/Meta/Lagom/libLagom.a)
-else()
-    message(FATAL_ERROR "libLagom.a not found!")
-endif()
+# NOTE: Name can't be Lagom because it conflicts with libLagom.a
+ExternalProject_Add(LagomProject
+    SOURCE_DIR ${LAGOM_SOURCE_DIR}
+    BINARY_DIR ${LAGOM_BINARY_DIR}
+    INSTALL_DIR ${LAGOM_INSTALL_DIR}
+    CMAKE_ARGS "-DBUILD_LAGOM=ON"
+    CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config $<CONFIG>
+    BUILD_ALWAYS ON)
 
 set(SOURCES
     src/$262Object.cpp
@@ -56,8 +59,11 @@ set(SOURCES
 )
 
 add_executable(libjs-test262-runner ${SOURCES})
+add_dependencies(libjs-test262-runner LagomProject)
 target_include_directories(libjs-test262-runner
     PUBLIC ${SERENITY_SOURCE_DIR}
     PUBLIC ${SERENITY_LIBRARIES_DIR}
 )
-target_link_libraries(libjs-test262-runner pthread ${LIBLAGOM_PATH})
+
+target_link_directories(libjs-test262-runner PUBLIC ${LAGOM_INSTALL_DIR}/lib)
+target_link_libraries(libjs-test262-runner pthread Lagom)
