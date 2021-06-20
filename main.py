@@ -88,7 +88,7 @@ EMOJIS = {
 
 NON_FAIL_RESULTS = [TestResult.PASSED, TestResult.SKIPPED]
 
-UNSUPPORTED_FEATURES = ["IsHTMLDDA"]
+UNSUPPORTED_FEATURES = []
 
 CPU_COUNT = multiprocessing.cpu_count()
 

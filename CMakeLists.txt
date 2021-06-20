@@ -52,6 +52,7 @@ set(SOURCES
     src/$262Object.cpp
     src/AgentObject.cpp
     src/GlobalObject.cpp
+    src/IsHTMLDDA.cpp
     src/main.cpp
 )
 
