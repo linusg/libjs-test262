@@ -13,7 +13,9 @@ class ResultParser:
         old_results = json.loads(old_path.read_text())
         new_results = json.loads(new_path.read_text())
 
-        self.duration_delta = float(new_results["duration"]) - float(old_results["duration"])
+        self.duration_delta = float(new_results["duration"]) - float(
+            old_results["duration"]
+        )
         self.old_results: dict[str, str] = old_results["results"]
         self.new_results: dict[str, str] = new_results["results"]
         self.regressions = regressions
