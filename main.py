@@ -446,7 +446,9 @@ def main() -> None:
         "--json", action="store_true", help="print the test results as JSON"
     )
     parser.add_argument(
-        "--per-file", action="store_true", help="show per-file results instead of per-directory results"
+        "--per-file",
+        action="store_true",
+        help="show per-file results instead of per-directory results",
     )
     logging_group = parser.add_mutually_exclusive_group()
     logging_group.add_argument(
@@ -479,7 +481,9 @@ def main() -> None:
     if args.json:
         data = {
             "duration": runner.duration.total_seconds(),
-            "results": runner.file_result_map if args.per_file else runner.directory_result_map,
+            "results": runner.file_result_map
+            if args.per_file
+            else runner.directory_result_map,
         }
         print(json.dumps(data))
     else:
