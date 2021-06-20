@@ -1,0 +1,34 @@
+/*
+ * Copyright (c) 2021, Linus Groh <linusg@serenityos.org>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#include "IsHTMLDDA.h"
+#include <LibJS/Runtime/GlobalObject.h>
+
+IsHTMLDDA::IsHTMLDDA(JS::GlobalObject& global_object)
+    // NativeFunction without prototype is currently not possible (only due to the lack of a ctor that supports it)
+    : JS::NativeFunction("IsHTMLDDA", *global_object.function_prototype())
+{
+}
+
+JS::Value IsHTMLDDA::call()
+{
+    auto& vm = this->vm();
+    if (vm.argument_count() == 0)
+        return JS::js_null();
+    if (vm.argument(0).is_string() && vm.argument(0).as_string().string().is_empty())
+        return JS::js_null();
+    // Not sure if this really matters, INTERPRETING.md simply says:
+    // * IsHTMLDDA - (present only in implementations that can provide it) an object that:
+    //   a. has an [[IsHTMLDDA]] internal slot, and
+    //   b. when called with no arguments or with the first argument "" (an empty string) returns null.
+    return JS::js_undefined();
+}
+
+JS::Value IsHTMLDDA::construct(JS::Function&)
+{
+    // Not sure if we need to support construction, but ¯\_(ツ)_/¯
+    return call();
+}

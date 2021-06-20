@@ -8,6 +8,7 @@
 #include "$262Object.h"
 #include "AgentObject.h"
 #include "GlobalObject.h"
+#include "IsHTMLDDA.h"
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Interpreter.h>
 #include <LibJS/Lexer.h>
@@ -26,6 +27,7 @@ void $262Object::initialize(JS::GlobalObject& global_object)
     Base::initialize(global_object);
 
     m_agent = vm().heap().allocate<AgentObject>(global_object, global_object);
+    m_is_htmldda = vm().heap().allocate<IsHTMLDDA>(global_object, global_object);
 
     define_native_function("clearKeptObjects", clear_kept_objects, 0);
     define_native_function("createRealm", create_realm, 0);
@@ -35,12 +37,14 @@ void $262Object::initialize(JS::GlobalObject& global_object)
     define_property("agent", m_agent);
     define_property("gc", global_object.get("gc"));
     define_property("global", &global_object);
+    define_property("IsHTMLDDA", m_is_htmldda);
 }
 
 void $262Object::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_agent);
+    visitor.visit(m_is_htmldda);
 }
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::clear_kept_objects)
