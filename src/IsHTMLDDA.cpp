@@ -27,7 +27,7 @@ JS::Value IsHTMLDDA::call()
     return JS::js_undefined();
 }
 
-JS::Value IsHTMLDDA::construct(JS::Function&)
+JS::Value IsHTMLDDA::construct(JS::FunctionObject&)
 {
     // Not sure if we need to support construction, but ¯\_(ツ)_/¯
     return call();
