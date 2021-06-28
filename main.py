@@ -46,7 +46,8 @@ class TestResult(str, Enum):
 class TestRun:
     file: Path
     result: TestResult
-    output: str
+    output: str | None
+    exit_code: int | None
     strict_mode: bool | None
 
 
@@ -154,10 +155,11 @@ def run_test(
 ) -> TestRun:
     # https://github.com/tc39/test262/blob/master/INTERPRETING.md
 
-    output = ""
+    output: str | None = None
+    exit_code: int | None = None
 
     def test_run(result: TestResult) -> TestRun:
-        return TestRun(file, result, output, strict_mode)
+        return TestRun(file, result, output, exit_code, strict_mode)
 
     def failed() -> TestRun:
         return test_run(TestResult.FAILED)
@@ -201,11 +203,13 @@ def run_test(
         )
     except subprocess.CalledProcessError as e:
         output = e.stdout.strip()
+        exit_code = e.returncode
         return test_run(TestResult.PROCESS_ERROR)
     except subprocess.TimeoutExpired:
         return test_run(TestResult.TIMEOUT_ERROR)
 
-    output = process.stdout.strip()
+    output = str(process.stdout.strip())
+    exit_code = process.returncode
     result = json.loads(output, strict=False)
 
     # Prettify JSON output for verbose printing
@@ -351,6 +355,7 @@ class Runner:
                 file,
                 result=TestResult.RUNNER_EXCEPTION,
                 output=traceback.format_exc(),
+                exit_code=None,
                 strict_mode=None,
             )
 
@@ -384,6 +389,12 @@ class Runner:
                     if test_run.output:
                         print()
                         print(test_run.output)
+                        print()
+                    if test_run.exit_code:
+                        signalnum = test_run.exit_code * -1
+                        if not test_run.output:
+                            print()
+                        print(f"{signal.strsignal(signalnum)}: {signalnum}")
                         print()
                     if show_progress:
                         progressbar.refresh()
