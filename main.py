@@ -462,9 +462,9 @@ def main() -> None:
     parser.add_argument(
         "-c",
         "--concurrency",
-        default=CPU_COUNT * 5,
+        default=CPU_COUNT,
         type=int,
-        help="number of concurrent workers (defaults to number of CPU cores * 5)",
+        help="number of concurrent workers (defaults to number of CPU cores)",
     )
     parser.add_argument(
         "--timeout",
