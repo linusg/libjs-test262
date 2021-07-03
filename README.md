@@ -55,7 +55,7 @@ optional arguments:
   -p PATTERN, --pattern PATTERN
                         glob pattern used for test file searching (defaults to test/**/*.js)
   -c CONCURRENCY, --concurrency CONCURRENCY
-                        number of concurrent workers (defaults to number of CPU cores)
+                        number of concurrent workers (defaults to number of CPU cores * 5)
   --timeout TIMEOUT     timeout for each test run in seconds (defaults to 10)
   --memory-limit MEMORY_LIMIT
                         memory limit for each test run in megabytes (defaults to 512)
