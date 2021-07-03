@@ -158,11 +158,13 @@ int main(int argc, char** argv)
 
     auto vm = JS::VM::create();
     auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
-    JS::Bytecode::Interpreter bytecode_interpreter { ast_interpreter->global_object() };
+    OwnPtr<JS::Bytecode::Interpreter> bytecode_interpreter = nullptr;
+    if (use_bytecode)
+        bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object());
 
     auto run_it = [&](String const& path) {
         if (use_bytecode)
-            return run_script(path, bytecode_interpreter);
+            return run_script(path, *bytecode_interpreter);
         return run_script(path, *ast_interpreter);
     };
 
