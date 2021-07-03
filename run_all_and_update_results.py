@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -118,6 +119,13 @@ def main() -> None:
     )
     test_js_results = test_js_output["results"]["tests"]
 
+    try:
+        runner_threads = int(os.environ["MAX_RUNNER_THREADS"])
+    except (KeyError, ValueError):
+        concurrency = ""
+    else:
+        concurrency = f"--concurrency {runner_threads * 2} "
+
     print("Running test262 with the AST interpreter...")
     libjs_test262_output = json.loads(
         # This is not the way, but I can't be bothered to import this stuff. :^)
@@ -125,6 +133,7 @@ def main() -> None:
             f"python3 {libjs_test262_main_py} "
             f"--libjs-test262-runner {libjs_test262_runner} "
             f"--test262 {test262} "
+            f"{concurrency}"
             "--silent --json"
         )
     )
@@ -137,6 +146,7 @@ def main() -> None:
             f"python3 {libjs_test262_main_py} "
             f"--libjs-test262-runner {libjs_test262_runner} "
             f"--test262 {test262} "
+            f"{concurrency}"
             "--silent --json --use-bytecode"
         )
     )
