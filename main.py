@@ -119,6 +119,7 @@ def run_script(
     test262_root: Path,
     script: str,
     includes: Iterable[str],
+    use_bytecode: bool,
     timeout: float,
     memory_limit: int,
 ) -> subprocess.CompletedProcess:
@@ -130,6 +131,7 @@ def run_script(
     harness_files = ["assert.js", "sta.js", *includes]
     command = [
         str(libjs_test262_runner),
+        *(["-b"] if use_bytecode else []),
         *[str((test262_root / "harness" / file).resolve()) for file in harness_files],
     ]
     return subprocess.run(
@@ -149,6 +151,7 @@ def run_test(
     libjs_test262_runner: Path,
     test262_root: Path,
     file: Path,
+    use_bytecode: bool,
     timeout: float,
     memory_limit: int,
     strict_mode: bool | None = None,
@@ -178,7 +181,14 @@ def run_test(
         return test_run(TestResult.SKIPPED)
 
     if strict_mode is None:
-        args = (libjs_test262_runner, test262_root, file, timeout, memory_limit)
+        args = (
+            libjs_test262_runner,
+            test262_root,
+            file,
+            use_bytecode,
+            timeout,
+            memory_limit,
+        )
         if "onlyStrict" in metadata.flags:
             return run_test(*args, strict_mode=True)
         elif "noStrict" in metadata.flags or "raw" in metadata.flags:
@@ -199,7 +209,13 @@ def run_test(
 
     try:
         process = run_script(
-            libjs_test262_runner, test262_root, script, includes, timeout, memory_limit
+            libjs_test262_runner,
+            test262_root,
+            script,
+            includes,
+            use_bytecode,
+            timeout,
+            memory_limit,
         )
     except subprocess.CalledProcessError as e:
         output = e.stdout.strip()
@@ -258,6 +274,7 @@ class Runner:
         memory_limit: int,
         silent: bool = False,
         verbose: bool = False,
+        use_bytecode: bool = False,
         per_file: bool = False,
         fail_only: bool = False,
     ) -> None:
@@ -268,6 +285,7 @@ class Runner:
         self.memory_limit = memory_limit
         self.silent = silent
         self.verbose = verbose
+        self.use_bytecode = use_bytecode
         self.per_file = per_file
         self.fail_only = fail_only
         self.files: list[Path] = []
@@ -347,6 +365,7 @@ class Runner:
                 self.libjs_test262_runner,
                 self.test262_root,
                 file,
+                use_bytecode=self.use_bytecode,
                 timeout=self.timeout,
                 memory_limit=self.memory_limit,
             )
@@ -422,6 +441,12 @@ def main() -> None:
         help="path to the 'libjs-test262-runner' binary",
     )
     parser.add_argument(
+        "-b",
+        "--use-bytecode",
+        action="store_true",
+        help="Use the bytecode interpreter to run the tests",
+    )
+    parser.add_argument(
         "-t",
         "--test262-root",
         required=True,
@@ -484,6 +509,7 @@ def main() -> None:
         args.memory_limit,
         args.silent,
         args.verbose,
+        args.use_bytecode,
         args.per_file,
         args.fail_only,
     )

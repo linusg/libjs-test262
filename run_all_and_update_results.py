@@ -118,7 +118,7 @@ def main() -> None:
     )
     test_js_results = test_js_output["results"]["tests"]
 
-    print("Running test262...")
+    print("Running test262 with the AST interpreter...")
     libjs_test262_output = json.loads(
         # This is not the way, but I can't be bothered to import this stuff. :^)
         run_command(
@@ -129,6 +129,18 @@ def main() -> None:
         )
     )
     libjs_test262_results = libjs_test262_output["results"]["test"]["results"]
+
+    print("Running test262 with the bytecode interpreter...")
+    libjs_test262_bc_output = json.loads(
+        # This is not the way either, but I can't be bothered to fix the one above and _then_ copy it. :^)
+        run_command(
+            f"python3 {libjs_test262_main_py} "
+            f"--libjs-test262-runner {libjs_test262_runner} "
+            f"--test262 {test262} "
+            "--silent --json --use-bytecode"
+        )
+    )
+    libjs_test262_bc_results = libjs_test262_bc_output["results"]["test"]["results"]
 
     result = {
         "commit_timestamp": commit_timestamp,
@@ -152,6 +164,19 @@ def main() -> None:
                     "timeout_error": libjs_test262_results["TIMEOUT_ERROR"],
                     "process_error": libjs_test262_results["PROCESS_ERROR"],
                     "runner_exception": libjs_test262_results["RUNNER_EXCEPTION"],
+                },
+            },
+            "test262-bytecode": {
+                "results": {
+                    "total": libjs_test262_bc_output["results"]["test"]["count"],
+                    "passed": libjs_test262_bc_results["PASSED"],
+                    "failed": libjs_test262_bc_results["FAILED"],
+                    "skipped": libjs_test262_bc_results["SKIPPED"],
+                    "metadata_error": libjs_test262_bc_results["METADATA_ERROR"],
+                    "harness_error": libjs_test262_bc_results["HARNESS_ERROR"],
+                    "timeout_error": libjs_test262_bc_results["TIMEOUT_ERROR"],
+                    "process_error": libjs_test262_bc_results["PROCESS_ERROR"],
+                    "runner_exception": libjs_test262_bc_results["RUNNER_EXCEPTION"],
                 },
             },
             "test262-parser-tests": {

@@ -12,6 +12,10 @@
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
+#include <LibJS/Bytecode/BasicBlock.h>
+#include <LibJS/Bytecode/Generator.h>
+#include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Bytecode/PassManager.h>
 #include <LibJS/Interpreter.h>
 #include <LibJS/Lexer.h>
 #include <LibJS/Parser.h>
@@ -50,10 +54,18 @@ static Result<NonnullRefPtr<JS::Program>, JsonObject> parse_program(StringView s
     return program;
 }
 
-static Result<void, JsonObject> run_program(JS::Interpreter& interpreter, JS::Program const& program)
+template<typename InterpreterT>
+static Result<void, JsonObject> run_program(InterpreterT& interpreter, JS::Program const& program)
 {
     auto& vm = interpreter.vm();
-    interpreter.run(interpreter.global_object(), program);
+    if constexpr (IsSame<InterpreterT, JS::Interpreter>) {
+        interpreter.run(interpreter.global_object(), program);
+    } else {
+        auto unit = JS::Bytecode::Generator::generate(program);
+        auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
+        passes.perform(unit);
+        interpreter.run(unit);
+    }
     if (auto* exception = vm.exception()) {
         vm.clear_exception();
         JsonObject error_object;
@@ -87,7 +99,8 @@ static Result<void, JsonObject> run_program(JS::Interpreter& interpreter, JS::Pr
     return {};
 }
 
-static Result<void, JsonObject> run_script(String const& path, JS::Interpreter& interpreter)
+template<typename InterpreterT>
+static Result<void, JsonObject> run_script(String const& path, InterpreterT& interpreter)
 {
     auto source_or_error = read_file(path);
     if (source_or_error.is_error())
@@ -105,9 +118,11 @@ static Result<void, JsonObject> run_script(String const& path, JS::Interpreter& 
 int main(int argc, char** argv)
 {
     Vector<String> harness_files;
+    bool use_bytecode = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("LibJS test262 runner for individual tests");
+    args_parser.add_option(use_bytecode, "Use the bytecode interpreter", "use-bytecode", 'b');
     args_parser.add_positional_argument(harness_files, "Harness files to execute prior to test execution", "paths", Core::ArgsParser::Required::No);
     args_parser.parse(argc, argv);
 
@@ -142,12 +157,19 @@ int main(int argc, char** argv)
     }
 
     auto vm = JS::VM::create();
-    auto interpreter = JS::Interpreter::create<GlobalObject>(*vm);
+    auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
+    JS::Bytecode::Interpreter bytecode_interpreter { ast_interpreter->global_object() };
+
+    auto run_it = [&](String const& path) {
+        if (use_bytecode)
+            return run_script(path, bytecode_interpreter);
+        return run_script(path, *ast_interpreter);
+    };
 
     JsonObject result_object;
 
     for (auto& path : harness_files) {
-        auto result = run_script(path, *interpreter);
+        auto result = run_it(path);
         if (result.is_error()) {
             result_object.set("harness_error", true);
             result_object.set("harness_file", path);
@@ -156,7 +178,7 @@ int main(int argc, char** argv)
         }
     }
     if (!result_object.has("harness_error")) {
-        auto result = run_script({}, *interpreter);
+        auto result = run_it({});
         if (result.is_error())
             result_object.set("error", result.release_error());
     }
