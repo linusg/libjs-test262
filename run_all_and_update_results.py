@@ -167,6 +167,7 @@ def main() -> None:
                 },
             },
             "test262-bytecode": {
+                "duration": libjs_test262_bc_output["duration"],
                 "results": {
                     "total": libjs_test262_bc_output["results"]["test"]["count"],
                     "passed": libjs_test262_bc_results["PASSED"],
