@@ -80,7 +80,7 @@ static Result<void, JsonObject> run_program(InterpreterT& interpreter, JS::Progr
                 auto constructor = object.get_without_side_effects("constructor");
                 if (constructor.is_object()) {
                     // NOTE: Would be nice to use get_without_side_effects() here, but for
-                    // whatever reason ScriptFunction's .name and .length are currently
+                    // whatever reason OrdinaryFunctionObject's .name and .length are currently
                     // native properties, so that's not going to work.
                     name = constructor.as_object().get("name");
                     if (!name.is_empty())
