@@ -29,15 +29,16 @@ void $262Object::initialize(JS::GlobalObject& global_object)
     m_agent = vm().heap().allocate<AgentObject>(global_object, global_object);
     m_is_htmldda = vm().heap().allocate<IsHTMLDDA>(global_object, global_object);
 
-    define_native_function("clearKeptObjects", clear_kept_objects, 0);
-    define_native_function("createRealm", create_realm, 0);
-    define_native_function("detachArrayBuffer", detach_array_buffer, 1);
-    define_native_function("evalScript", eval_script, 1);
+    u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
+    define_native_function("clearKeptObjects", clear_kept_objects, 0, attr);
+    define_native_function("createRealm", create_realm, 0, attr);
+    define_native_function("detachArrayBuffer", detach_array_buffer, 1, attr);
+    define_native_function("evalScript", eval_script, 1, attr);
 
-    define_property("agent", m_agent);
-    define_property("gc", global_object.get("gc"));
-    define_property("global", &global_object);
-    define_property("IsHTMLDDA", m_is_htmldda);
+    define_direct_property("agent", m_agent, attr);
+    define_direct_property("gc", global_object.get("gc"), attr);
+    define_direct_property("global", &global_object, attr);
+    define_direct_property("IsHTMLDDA", m_is_htmldda, attr);
 }
 
 void $262Object::visit_edges(JS::Cell::Visitor& visitor)
