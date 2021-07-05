@@ -19,8 +19,9 @@ void AgentObject::initialize(JS::GlobalObject& global_object)
 {
     Base::initialize(global_object);
 
-    define_native_function("monotonicNow", monotonic_now, 0);
-    define_native_function("sleep", sleep, 1);
+    u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
+    define_native_function("monotonicNow", monotonic_now, 0, attr);
+    define_native_function("sleep", sleep, 1, attr);
     // TODO: broadcast
     // TODO: getReport
     // TODO: start
