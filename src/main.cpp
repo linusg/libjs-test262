@@ -74,7 +74,7 @@ static Result<void, JsonObject> run_program(InterpreterT& interpreter, JS::Progr
             auto& object = exception->value().as_object();
 
             auto name = object.get_without_side_effects("name");
-            if (!name.is_empty() && !name.is_accessor() && !name.is_native_property()) {
+            if (!name.is_empty() && !name.is_accessor()) {
                 error_object.set("type", name.to_string_without_side_effects());
             } else {
                 auto constructor = object.get_without_side_effects("constructor");
@@ -89,7 +89,7 @@ static Result<void, JsonObject> run_program(InterpreterT& interpreter, JS::Progr
             }
 
             auto message = object.get_without_side_effects("message");
-            if (!message.is_empty() && !message.is_accessor() && !message.is_native_property())
+            if (!message.is_empty() && !message.is_accessor())
                 error_object.set("details", message.to_string_without_side_effects());
         }
         if (!error_object.has("type"))
