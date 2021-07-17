@@ -117,6 +117,8 @@ static Result<void, JsonObject> run_script(String const& path, InterpreterT& int
 
 int main(int argc, char** argv)
 {
+    AK::set_debug_enabled(false);
+
     Vector<String> harness_files;
     bool use_bytecode = false;
 
