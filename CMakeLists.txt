@@ -1,15 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
 project(libjs-test262 CXX)
 
-if (NOT DEFINED ENV{SERENITY_SOURCE_DIR})
-    message(FATAL_ERROR "SERENITY_SOURCE_DIR not set.")
-endif()
-
-get_filename_component(SERENITY_SOURCE_DIR $ENV{SERENITY_SOURCE_DIR} ABSOLUTE)
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+# See slide 100 of the following ppt :^)
+# https://crascit.com/wp-content/uploads/2019/09/Deep-CMake-For-Library-Authors-Craig-Scott-CppCon-2019.pdf
+if (NOT APPLE)
+    set(CMAKE_INSTALL_RPATH $ORIGIN)
+endif()
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Copied from Serenity's root CMakeLists.txt
 add_compile_options(-Wall)
@@ -35,18 +38,10 @@ add_compile_options(-Wunused)
 add_compile_options(-Wwrite-strings)
 add_compile_options(-fno-exceptions)
 
-set(SERENITY_LIBRARIES_DIR ${SERENITY_SOURCE_DIR}/Userland/Libraries)
+include (FetchContent)
+include (cmake/FetchLagom.cmake)
 
-# FIXME: I have not idea how to CMake :^)
-if(EXISTS ${SERENITY_SOURCE_DIR}/Build/lagom/libLagom.a)
-    # Lagom-only build with cmake ../../Meta/Lagom
-    set(LIBLAGOM_PATH ${SERENITY_SOURCE_DIR}/Build/lagom/libLagom.a)
-elseif(EXISTS ${SERENITY_SOURCE_DIR}/Build/lagom/Meta/Lagom/libLagom.a)
-    # Full build with cmake ../..
-    set(LIBLAGOM_PATH ${SERENITY_SOURCE_DIR}/Build/lagom/Meta/Lagom/libLagom.a)
-else()
-    message(FATAL_ERROR "libLagom.a not found!")
-endif()
+find_package(Threads REQUIRED)
 
 set(SOURCES
     src/$262Object.cpp
@@ -57,8 +52,5 @@ set(SOURCES
 )
 
 add_executable(libjs-test262-runner ${SOURCES})
-target_include_directories(libjs-test262-runner
-    PUBLIC ${SERENITY_SOURCE_DIR}
-    PUBLIC ${SERENITY_LIBRARIES_DIR}
-)
-target_link_libraries(libjs-test262-runner pthread ${LIBLAGOM_PATH})
+target_link_libraries(libjs-test262-runner Threads::Threads Lagom::Core Lagom::JS)
+install(TARGETS libjs-test262-runner RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
