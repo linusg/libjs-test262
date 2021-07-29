@@ -41,9 +41,11 @@ set(SERENITY_LIBRARIES_DIR ${SERENITY_SOURCE_DIR}/Userland/Libraries)
 if(EXISTS ${SERENITY_SOURCE_DIR}/Build/lagom/libLagom.a)
     # Lagom-only build with cmake ../../Meta/Lagom
     set(LIBLAGOM_PATH ${SERENITY_SOURCE_DIR}/Build/lagom/libLagom.a)
+    set(SERENITY_BUILD_DIR ${SERENITY_SOURCE_DIR}/Build/lagom)
 elseif(EXISTS ${SERENITY_SOURCE_DIR}/Build/lagom/Meta/Lagom/libLagom.a)
     # Full build with cmake ../..
     set(LIBLAGOM_PATH ${SERENITY_SOURCE_DIR}/Build/lagom/Meta/Lagom/libLagom.a)
+    set(SERENITY_BUILD_DIR ${SERENITY_SOURCE_DIR}/Build/lagom/Meta/Lagom)
 else()
     message(FATAL_ERROR "libLagom.a not found!")
 endif()
@@ -60,5 +62,6 @@ add_executable(libjs-test262-runner ${SOURCES})
 target_include_directories(libjs-test262-runner
     PUBLIC ${SERENITY_SOURCE_DIR}
     PUBLIC ${SERENITY_LIBRARIES_DIR}
+    PUBLIC ${SERENITY_BUILD_DIR}
 )
 target_link_libraries(libjs-test262-runner pthread ${LIBLAGOM_PATH})
