@@ -86,9 +86,11 @@ def main() -> None:
     commit_timestamp = get_git_commit_timestamp(serenity)
     run_timestamp = int(time.time())
 
-    serenity_test_js = serenity / "Build/lagom/test-js"
+    serenity_test_js = libjs_test262 / "Build/_deps/lagom-build/test-js"
     if not serenity_test_js.exists():
-        serenity_test_js = serenity / "Build/lagom/Meta/Lagom/test-js"
+        serenity_test_js = serenity / "Build/lagom/test-js"
+        if not serenity_test_js.exists():
+            serenity_test_js = serenity / "Build/lagom/Meta/Lagom/test-js"
     libjs_test262_main_py = libjs_test262 / "main.py"
     libjs_test262_runner = libjs_test262 / "Build/libjs-test262-runner"
 

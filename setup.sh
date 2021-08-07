@@ -17,5 +17,5 @@ pushd "${LIBJS_TEST262_BUILD_DIR}"
     cmake -GNinja .. -DSERENITY_SOURCE_DIR="${SERENITY_SOURCE_DIR}"
 
     log libjs-test262-runner "Building..."
-    cmake --build .
+    cmake --build . --target libjs-test262-runner test-js
 popd
