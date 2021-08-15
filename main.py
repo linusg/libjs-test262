@@ -120,6 +120,7 @@ def run_script(
     script: str,
     includes: Iterable[str],
     use_bytecode: bool,
+    as_module: bool,
     timeout: float,
     memory_limit: int,
 ) -> subprocess.CompletedProcess:
@@ -132,6 +133,7 @@ def run_script(
     command = [
         str(libjs_test262_runner),
         *(["-b"] if use_bytecode else []),
+        *(["-m"] if as_module else []),
         *[str((test262_root / "harness" / file).resolve()) for file in harness_files],
     ]
     return subprocess.run(
@@ -189,6 +191,9 @@ def run_test(
             timeout,
             memory_limit,
         )
+        if "module" in metadata.flags:
+            # Will be forced to be strict by interpreting as module do not add 'use strict';
+            return run_test(*args, strict_mode=False)
         if "onlyStrict" in metadata.flags:
             return run_test(*args, strict_mode=True)
         elif "noStrict" in metadata.flags or "raw" in metadata.flags:
@@ -207,6 +212,8 @@ def run_test(
     if strict_mode:
         script = f'"use strict";\n{script}'
 
+    as_module = "module" in metadata.flags
+
     try:
         process = run_script(
             libjs_test262_runner,
@@ -214,6 +221,7 @@ def run_test(
             script,
             includes,
             use_bytecode,
+            as_module,
             timeout,
             memory_limit,
         )

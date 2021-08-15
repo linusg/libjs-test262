@@ -40,9 +40,9 @@ static Result<ByteBuffer, JsonObject> read_file(String const& path)
     }
 }
 
-static Result<NonnullRefPtr<JS::Program>, JsonObject> parse_program(StringView source)
+static Result<NonnullRefPtr<JS::Program>, JsonObject> parse_program(StringView source, JS::Program::Type program_type)
 {
-    auto parser = JS::Parser(JS::Lexer(source));
+    auto parser = JS::Parser(JS::Lexer(source), program_type);
     auto program = parser.parse_program();
     if (parser.has_errors()) {
         JsonObject error_object;
@@ -100,14 +100,14 @@ static Result<void, JsonObject> run_program(InterpreterT& interpreter, JS::Progr
 }
 
 template<typename InterpreterT>
-static Result<void, JsonObject> run_script(String const& path, InterpreterT& interpreter)
+static Result<void, JsonObject> run_script(String const& path, InterpreterT& interpreter, JS::Program::Type program_type)
 {
     auto source_or_error = read_file(path);
     if (source_or_error.is_error())
         return source_or_error.release_error();
     auto source = source_or_error.release_value();
 
-    auto program_or_error = parse_program(source);
+    auto program_or_error = parse_program(source, program_type);
     if (program_or_error.is_error())
         return program_or_error.release_error();
     auto program = program_or_error.release_value();
@@ -121,10 +121,12 @@ int main(int argc, char** argv)
 
     Vector<String> harness_files;
     bool use_bytecode = false;
+    bool as_module = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("LibJS test262 runner for individual tests");
     args_parser.add_option(use_bytecode, "Use the bytecode interpreter", "use-bytecode", 'b');
+    args_parser.add_option(as_module, "Interpret as module", "module", 'm');
     args_parser.add_positional_argument(harness_files, "Harness files to execute prior to test execution", "paths", Core::ArgsParser::Required::No);
     args_parser.parse(argc, argv);
 
@@ -164,10 +166,10 @@ int main(int argc, char** argv)
     if (use_bytecode)
         bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object());
 
-    auto run_it = [&](String const& path) {
+    auto run_it = [&](String const& path, JS::Program::Type program_type = JS::Program::Type::Script) {
         if (use_bytecode)
-            return run_script(path, *bytecode_interpreter);
-        return run_script(path, *ast_interpreter);
+            return run_script(path, *bytecode_interpreter, program_type);
+        return run_script(path, *ast_interpreter, program_type);
     };
 
     JsonObject result_object;
@@ -182,7 +184,7 @@ int main(int argc, char** argv)
         }
     }
     if (!result_object.has("harness_error")) {
-        auto result = run_it({});
+        auto result = run_it({}, as_module ? JS::Program::Type::Module : JS::Program::Type::Script);
         if (result.is_error())
             result_object.set("error", result.release_error());
     }
