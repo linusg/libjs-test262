@@ -38,6 +38,13 @@ add_compile_options(-Wunused)
 add_compile_options(-Wwrite-strings)
 add_compile_options(-fno-exceptions)
 
+option(ENABLE_ADDRESS_SANITIZER "Enable address sanitizer testing in gcc/clang" OFF)
+
+if (ENABLE_ADDRESS_SANITIZER)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+endif()
+
 include (FetchContent)
 include (cmake/FetchLagom.cmake)
 
