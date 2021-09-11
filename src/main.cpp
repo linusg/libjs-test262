@@ -164,7 +164,7 @@ int main(int argc, char** argv)
     auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
     OwnPtr<JS::Bytecode::Interpreter> bytecode_interpreter = nullptr;
     if (use_bytecode)
-        bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object());
+        bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object(), ast_interpreter->realm());
 
     auto run_it = [&](String const& path, JS::Program::Type program_type = JS::Program::Type::Script) {
         if (use_bytecode)
