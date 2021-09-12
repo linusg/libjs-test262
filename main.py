@@ -2,6 +2,7 @@
 # Copyright (c) 2020-2021, Linus Groh <linusg@serenityos.org>
 # Copyright (c) 2021, Marcin Gasperowicz <xnooga@gmail.com>
 # Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
+# Copyright (c) 2021, David Tuin <davidot@serenityos.org>
 #
 # SPDX-License-Identifier: MIT
 
@@ -9,26 +10,22 @@ from __future__ import annotations
 
 import concurrent.futures
 import datetime
+import glob
 import json
 import multiprocessing
 import os
-import re
 import resource
 import signal
 import subprocess
+import threading
 import traceback
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Literal
+from typing import Any, Callable, Optional
 
-from ruamel.yaml import YAML
 from tqdm import tqdm
-
-# \s* after opening and before closing marker as some (2 as of
-# 2021-06-06) tests have trailing /leading whitespace there.
-METADATA_YAML_REGEX = re.compile(r"/\*---\s*\n((?:.|\n)+)\n\s*---\*/")
 
 
 class TestResult(str, Enum):
@@ -51,31 +48,6 @@ class TestRun:
     strict_mode: bool | None
 
 
-@dataclass
-class Metadata:
-    features: list[str]
-    flags: list[
-        Literal[
-            "onlyStrict",
-            "noStrict",
-            "module",
-            "raw",
-            "async",
-            "generated",
-            "CanBlockIsFalse",
-        ]
-    ]
-    includes: list[str]
-    locale: list[str]
-    negative: NegativeMetadata | None
-
-
-@dataclass
-class NegativeMetadata:
-    phase: Literal["parse", "early", "resolution", "runtime"]
-    type: str
-
-
 EMOJIS = {
     TestResult.PASSED: "✅",
     TestResult.FAILED: "❌",
@@ -89,187 +61,158 @@ EMOJIS = {
 
 NON_FAIL_RESULTS = [TestResult.PASSED, TestResult.SKIPPED]
 
-UNSUPPORTED_FEATURES = []
-
 CPU_COUNT = multiprocessing.cpu_count()
+BATCH_SIZE = 250
+
+progress_mutex = threading.Lock()
 
 
-def get_metadata(test_file: Path) -> Metadata | None:
-    contents = test_file.resolve().read_text()
-    if match := re.search(METADATA_YAML_REGEX, contents):
-        metadata_yaml = match.groups()[0]
-        metadata = dict(YAML().load(metadata_yaml))
-        return Metadata(
-            features=metadata.get("features", []),
-            flags=metadata.get("flags", []),
-            includes=metadata.get("includes", []),
-            locale=metadata.get("locale", []),
-            negative=NegativeMetadata(
-                phase=metadata["negative"]["phase"],
-                type=metadata["negative"]["type"],
-            )
-            if "negative" in metadata
-            else None,
-        )
-    return None
-
-
-def run_script(
+def run_streaming_script(
     libjs_test262_runner: Path,
     test262_root: Path,
-    script: str,
-    includes: Iterable[str],
     use_bytecode: bool,
-    as_module: bool,
-    timeout: float,
+    parse_only: bool,
+    timeout: int,
     memory_limit: int,
+    test_file_paths: list[Path],
 ) -> subprocess.CompletedProcess:
     def limit_memory():
         resource.setrlimit(
             resource.RLIMIT_AS, (memory_limit * 1024 * 1024, resource.RLIM_INFINITY)
         )
 
-    harness_files = ["assert.js", "sta.js", *includes]
     command = [
         str(libjs_test262_runner),
         *(["-b"] if use_bytecode else []),
-        *(["-m"] if as_module else []),
-        *[str((test262_root / "harness" / file).resolve()) for file in harness_files],
+        *(["--parse-only"] if parse_only else []),
+        "--harness-location",
+        str((test262_root / "harness").resolve()),
+        "-t",
+        str(timeout),
     ]
+
     return subprocess.run(
         command,
-        input=script,
+        input="\n".join(str(path) for path in test_file_paths),
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.PIPE,
         check=True,
         text=True,
-        timeout=timeout,
         preexec_fn=limit_memory,
         errors="ignore",  # strip invalid utf8 code points instead of throwing (to allow for invalid utf-8 tests)
     )
 
 
-def run_test(
+def run_tests(
     libjs_test262_runner: Path,
     test262_root: Path,
-    file: Path,
+    test_file_paths: list[Path],
     use_bytecode: bool,
-    timeout: float,
+    parse_only: bool,
+    timeout: int,
     memory_limit: int,
-    strict_mode: bool | None = None,
-) -> TestRun:
-    # https://github.com/tc39/test262/blob/master/INTERPRETING.md
+    on_progress_change: Callable[[int], None] | None,
+) -> list[TestRun]:
 
-    output: str | None = None
-    exit_code: int | None = None
+    current_test = 0
+    results = []
 
-    def test_run(result: TestResult) -> TestRun:
-        return TestRun(file, result, output, exit_code, strict_mode)
-
-    def failed() -> TestRun:
-        return test_run(TestResult.FAILED)
-
-    def passed() -> TestRun:
-        return test_run(TestResult.PASSED)
-
-    def passed_if(condition: Any) -> TestRun:
-        return test_run(TestResult.PASSED if condition else TestResult.FAILED)
-
-    metadata = get_metadata(file)
-    if metadata is None:
-        return test_run(TestResult.METADATA_ERROR)
-
-    if any(feature in UNSUPPORTED_FEATURES for feature in metadata.features):
-        return test_run(TestResult.SKIPPED)
-
-    if strict_mode is None:
-        args = (
-            libjs_test262_runner,
-            test262_root,
-            file,
-            use_bytecode,
-            timeout,
-            memory_limit,
-        )
-        if "module" in metadata.flags:
-            # Will be forced to be strict by interpreting as module do not add 'use strict';
-            return run_test(*args, strict_mode=False)
-        if "onlyStrict" in metadata.flags:
-            return run_test(*args, strict_mode=True)
-        elif "noStrict" in metadata.flags or "raw" in metadata.flags:
-            return run_test(*args, strict_mode=False)
-        elif (
-            first_run := run_test(*args, strict_mode=True)
-        ).result != TestResult.PASSED:
-            return first_run
-        return run_test(*args, strict_mode=False)
-
-    includes = metadata.includes
-    if "async" in metadata.flags:
-        includes.append("doneprintHandle.js")
-
-    script = file.read_text()
-    if strict_mode:
-        script = f'"use strict";\n{script}'
-
-    as_module = "module" in metadata.flags
-
-    try:
-        process = run_script(
-            libjs_test262_runner,
-            test262_root,
-            script,
-            includes,
-            use_bytecode,
-            as_module,
-            timeout,
-            memory_limit,
-        )
-    except subprocess.CalledProcessError as e:
-        output = e.stdout.strip()
-        exit_code = e.returncode
-        return test_run(TestResult.PROCESS_ERROR)
-    except subprocess.TimeoutExpired:
-        return test_run(TestResult.TIMEOUT_ERROR)
-
-    output = str(process.stdout.strip())
-    exit_code = process.returncode
-    result = json.loads(output, strict=False)
-
-    # Prettify JSON output for verbose printing
-    output = json.dumps(result, indent=2, ensure_ascii=False)
-
-    if result.get("harness_error") is True:
-        return test_run(TestResult.HARNESS_ERROR)
-
-    if negative := metadata.negative:
-        error = result.get("error")
-        if not error:
-            return failed()
-        phase = error.get("phase")
-        type_ = error.get("type")
-        if negative.phase == "parse" or negative.phase == "early":
-            # No distinction between parse and early in the LibJS parser.
-            return passed_if(phase == "parse" and type_ == negative.type)
-        elif negative.phase == "runtime":
-            return passed_if(phase == "runtime" and type_ == negative.type)
-        elif negative.phase == "resolution":
-            # No modules yet :^)
-            return failed()
-        else:
-            raise Exception(f"Unexpected phase '{negative.phase}'")
-
-    if result.get("error"):
-        return failed()
-
-    if "async" in metadata.flags:
-        result_output = result.get("output", "")
-        return passed_if(
-            "Test262:AsyncTestComplete" in result_output
-            and "Test262:AsyncTestFailure" not in result_output
+    def add_result(
+        result: TestResult,
+        output: str = "",
+        exit_code: int = 0,
+        strict_mode: bool = False,
+    ) -> None:
+        results.append(
+            TestRun(
+                test_file_paths[current_test], result, output, exit_code, strict_mode
+            )
         )
 
-    return passed()
+    while current_test < len(test_file_paths):
+        start_count = current_test
+        process_failed = False
+        try:
+            process_result: Any = run_streaming_script(
+                libjs_test262_runner,
+                test262_root,
+                use_bytecode,
+                parse_only,
+                timeout,
+                memory_limit,
+                test_file_paths[current_test : current_test + BATCH_SIZE],
+            )
+        except subprocess.CalledProcessError as e:
+            process_failed = True
+            process_result = e
+
+        test_results = [
+            part.strip() for part in process_result.stdout.strip().split("\0")
+        ]
+        have_stopping_result = False
+
+        while test_results:
+            if not test_results[0].startswith("RESULT "):
+                break
+
+            test_result_string = test_results.pop(0).removeprefix("RESULT ")
+
+            try:
+                test_result = json.loads(test_result_string, strict=False)
+            except json.decoder.JSONDecodeError:
+                raise Exception(f"Could not parse JSON from '{test_result_string}'")
+
+            file_name = Path(test_result["test"])
+
+            if file_name != test_file_paths[current_test]:
+                raise Exception(
+                    f"Unexpected result from test {file_name} but expected result from {test_file_paths[current_test]}"
+                )
+
+            strict_mode = test_result.get("strict_mode", False)
+
+            test_result_state = TestResult.FAILED
+
+            result = test_result["result"]
+            if result == "harness_error":
+                test_result_state = TestResult.HARNESS_ERROR
+            elif result == "metadata_error":
+                test_result_state = TestResult.METADATA_ERROR
+            elif result == "timeout":
+                have_stopping_result = True
+                test_result_state = TestResult.TIMEOUT_ERROR
+            elif result == "assert_fail":
+                have_stopping_result = True
+                test_result_state = TestResult.PROCESS_ERROR
+            elif result == "passed":
+                test_result_state = TestResult.PASSED
+            elif result == "skipped":
+                test_result_state = TestResult.SKIPPED
+            elif result != "failed":
+                raise Exception(f"Unknown error code: {result} from {test_result}")
+
+            if strict_output := test_result.get("strict_output"):
+                output = strict_output
+            elif non_strict_output := test_result.get("output"):
+                output = non_strict_output
+            else:
+                output = json.dumps(test_result, indent=2, ensure_ascii=False)
+
+            add_result(test_result_state, output, strict_mode=strict_mode)
+            current_test += 1
+
+        if process_failed and not have_stopping_result:
+            add_result(
+                TestResult.PROCESS_ERROR,
+                "\n".join(test_results),
+                process_result.returncode,
+            )
+            current_test += 1
+
+        if on_progress_change is not None:
+            on_progress_change(current_test - start_count)
+
+    return results
 
 
 class Runner:
@@ -285,6 +228,7 @@ class Runner:
         use_bytecode: bool = False,
         per_file: bool = False,
         fail_only: bool = False,
+        parse_only: bool = False,
     ) -> None:
         self.libjs_test262_runner = libjs_test262_runner
         self.test262_root = test262_root
@@ -300,23 +244,34 @@ class Runner:
         self.directory_result_map: dict[str, dict] = {}
         self.file_result_map: dict[str, str] = {}
         self.total_count = 0
-        self.progress = 0
         self.duration = datetime.timedelta()
+        self.parse_only = parse_only
+        self.update_function: Callable[[int], None] | None = None
+        self.print_output: Callable[[Optional[Any]], Any] = print
 
     def log(self, message: str) -> None:
         if not self.silent and not self.per_file:
-            print(message)
+            self.print_output(message)
 
-    def find_tests(self, pattern: str) -> None:
-        self.log("Searching test files...")
+    def find_tests(self, pattern: str, ignore: str) -> None:
         if Path(pattern).resolve().is_file():
             self.files = [Path(pattern).resolve()]
         else:
-            self.files = [
-                path.resolve()
-                for path in self.test262_root.glob(pattern)
-                if path.is_file() and not path.stem.endswith("FIXTURE")
-            ]
+            ignored_files = set(
+                glob.iglob(str(self.test262_root / ignore), recursive=True)
+            )
+            for path in glob.iglob(str(self.test262_root / pattern), recursive=True):
+                found_path = Path(path)
+                if (
+                    found_path.is_dir()
+                    or "_FIXTURE" in found_path.stem
+                    or not found_path.exists()
+                    or path in ignored_files
+                ):
+                    continue
+
+                self.files.append(found_path)
+
         self.files.sort()
         self.total_count = len(self.files)
         self.log(f"Found {self.total_count}.")
@@ -359,7 +314,9 @@ class Runner:
             passed = tree["results"][TestResult.PASSED]
             percentage = (passed / count) * 100
             pad = " " * (80 - len(path))
-            print(f"{path}{pad}{passed:>5}/{count:<5} ({percentage:6.2f}%) {results} ")
+            self.print_output(
+                f"{path}{pad}{passed:>5}/{count:<5} ({percentage:6.2f}%) {results} "
+            )
             if passed > 0:
                 for k, v in tree["children"].items():
                     print_tree(v, path + "/" + k, level + 1)
@@ -367,72 +324,110 @@ class Runner:
         for k, v in self.directory_result_map.items():
             print_tree(v, k, 0)
 
-    def process(self, file: Path) -> TestRun:
+    def process_list(self, files: list[Path]) -> list[TestRun]:
+        if not files:
+            return []
+
         try:
-            return run_test(
+            return run_tests(
                 self.libjs_test262_runner,
                 self.test262_root,
-                file,
+                files,
                 use_bytecode=self.use_bytecode,
+                parse_only=self.parse_only,
                 timeout=self.timeout,
                 memory_limit=self.memory_limit,
+                on_progress_change=self.update_function,
             )
-        except:
-            return TestRun(
-                file,
-                result=TestResult.RUNNER_EXCEPTION,
-                output=traceback.format_exc(),
-                exit_code=None,
-                strict_mode=None,
-            )
+        except Exception as e:
+            return [
+                TestRun(
+                    file,
+                    result=TestResult.RUNNER_EXCEPTION
+                    if i == 0
+                    else TestResult.SKIPPED,
+                    output=traceback.format_exc() if i == 0 else "",
+                    exit_code=None,
+                    strict_mode=None,
+                )
+                for i, file in enumerate(files)
+            ]
 
     def run(self) -> None:
         if not self.files:
             self.log("No tests to run.")
             return
-        show_progress = not self.silent
-        if show_progress:
+
+        workers = self.concurrency
+
+        amount_of_work_lists = workers
+        if self.total_count > workers * workers * 4:
+            amount_of_work_lists = workers * 4
+
+        amount_of_work_lists = min(amount_of_work_lists, self.total_count)
+        work_lists: list[list[Path]] = [[] for _ in range(amount_of_work_lists)]
+
+        for index, test_path in enumerate(self.files):
+            work_lists[index % amount_of_work_lists].append(test_path)
+
+        if not self.silent:
             progressbar = tqdm(
                 total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
             )
+
+            def update_progress(value):
+                progress_mutex.acquire()
+                try:
+                    progressbar.update(value)
+                finally:
+                    progress_mutex.release()
+
+            self.update_function = update_progress
+
+            def write_output(message: Any):
+                tqdm.write(message)
+
+            self.print_output = write_output
+
         start = datetime.datetime.now()
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=self.concurrency
-        ) as executor:
-            futures = {executor.submit(self.process, f) for f in self.files}
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(self.process_list, file_list)
+                for file_list in work_lists
+            ]
+
             for future in concurrent.futures.as_completed(futures):
-                test_run = future.result()
-                self.count_result(test_run)
-                if self.verbose or (
-                    self.fail_only and test_run.result not in NON_FAIL_RESULTS
-                ):
-                    if show_progress:
-                        # prevent progressbars in the middle of verbose results
-                        progressbar.clear()
-                    print(
-                        f"{EMOJIS[test_run.result]} {test_run.file}"
-                        f"{' (strict mode)' if test_run.strict_mode else ''}"
-                    )
-                    if test_run.output:
-                        print()
-                        print(test_run.output)
-                        print()
-                    if test_run.exit_code:
-                        signalnum = test_run.exit_code * -1
-                        if not test_run.output:
-                            print()
-                        print(f"{signal.strsignal(signalnum)}: {signalnum}")
-                        print()
-                    if show_progress:
-                        progressbar.refresh()
-                if show_progress:
-                    progressbar.update(1)
-                self.progress += 1
+                test_runs = future.result()
+                for test_run in test_runs:
+                    self.count_result(test_run)
+                    if self.verbose or (
+                        self.fail_only and test_run.result not in NON_FAIL_RESULTS
+                    ):
+                        self.print_output(
+                            f"{EMOJIS[test_run.result]} {test_run.file}"
+                            f"{' (strict mode)' if test_run.strict_mode else ''}"
+                        )
+                        if test_run.output:
+                            self.print_output("")
+                            self.print_output(test_run.output)
+                            self.print_output("")
+
+                        if test_run.exit_code:
+                            signalnum = test_run.exit_code * -1
+                            if not test_run.output:
+                                self.print_output("")
+                                self.print_output(
+                                    f"{signal.strsignal(signalnum)}: {signalnum}"
+                                )
+                                self.print_output("")
+
+        if not self.silent:
+            progressbar.close()
 
         end = datetime.datetime.now()
         self.duration = end - start
-        if show_progress:
-            progressbar.close()
+
         self.log(f"Finished running tests in {self.duration}.")
 
 
@@ -504,10 +499,27 @@ def main() -> None:
     logging_group.add_argument(
         "-v", "--verbose", action="store_true", help="print output of test runs"
     )
+
     parser.add_argument(
         "-f", "--fail-only", action="store_true", help="only show failed tests"
     )
+    parser.add_argument(
+        "--parse-only",
+        action="store_true",
+        help="only parse the test files and fail/pass based on that",
+    )
+    parser.add_argument(
+        "--ignore",
+        default="",
+        help="ignore any tests matching the glob",
+    )
+
     args = parser.parse_args()
+
+    if args.per_file:
+        args.json = True
+        args.verbose = False
+        args.fail_only = False
 
     runner = Runner(
         Path(args.libjs_test262_runner).resolve(),
@@ -520,8 +532,9 @@ def main() -> None:
         args.use_bytecode,
         args.per_file,
         args.fail_only,
+        args.parse_only,
     )
-    runner.find_tests(args.pattern)
+    runner.find_tests(args.pattern, args.ignore)
     runner.run()
     if args.json:
         data = {

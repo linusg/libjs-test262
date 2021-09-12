@@ -4,7 +4,7 @@
 
 ## Installation
 
-Install `git`, `cmake`, `ninja`, `gcc`/`clang` and `python3` (3.8+).
+Install `git`, `cmake`, `ninja`, `gcc`/`clang` and `python3` (3.9+).
 
 To install the script's dependencies, run:
 
@@ -14,7 +14,6 @@ pip3 install -r requirements.txt
 
 Dependencies are:
 
-- `ruamel.yaml` for parsing the test's YAML metadata
 - `tqdm` for displaying a progress bar
 
 ## Usage
@@ -41,7 +40,7 @@ python3 main.py --libjs-test262-runner ./Build/libjs-test262-runner --test262-ro
 ## Options
 
 ```text
-usage: main.py [-h] -j PATH [-b] -t PATH [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [--memory-limit MEMORY_LIMIT] [--json] [--per-file] [-s | -v] [-f]
+usage: main.py [-h] -j PATH [-b] -t PATH [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [--memory-limit MEMORY_LIMIT] [--json] [--per-file] [-s | -v] [-f] [--parse-only] [--ignore IGNORE]
 
 Run the test262 ECMAScript test suite with SerenityOS's LibJS
 
@@ -64,6 +63,8 @@ optional arguments:
   -s, --silent          don't print any progress information
   -v, --verbose         print output of test runs
   -f, --fail-only       only show failed tests
+  --parse-only          only parse the test files and fail/pass based on that
+  --ignore IGNORE       ignore any tests matching the glob
 ```
 
 ## Current status
