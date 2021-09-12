@@ -59,5 +59,5 @@ set(SOURCES
 )
 
 add_executable(libjs-test262-runner ${SOURCES})
-target_link_libraries(libjs-test262-runner Threads::Threads Lagom::Core Lagom::JS)
+target_link_libraries(libjs-test262-runner Threads::Threads Lagom::Core Lagom::JS rt)
 install(TARGETS libjs-test262-runner RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
