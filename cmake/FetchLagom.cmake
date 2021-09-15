@@ -21,7 +21,7 @@ endif()
 FetchContent_GetProperties(lagom)
 if (NOT lagom_POPULATED)
     FetchContent_Populate(lagom)
-    set(BUILD_LAGOM ON)
+    set(BUILD_LAGOM ON CACHE INTERNAL "Build all Lagom targets")
 
     # FIXME: Setting target_include_directories on Lagom libraries might make this unecessary?
     include_directories(${lagom_SOURCE_DIR}/Userland/Libraries)
