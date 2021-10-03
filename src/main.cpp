@@ -79,11 +79,8 @@ static Result<void, JsonObject> run_program(InterpreterT& interpreter, JS::Progr
             } else {
                 auto constructor = object.get_without_side_effects("constructor");
                 if (constructor.is_object()) {
-                    // NOTE: Would be nice to use get_without_side_effects() here, but for
-                    // whatever reason OrdinaryFunctionObject's .name and .length are currently
-                    // native properties, so that's not going to work.
-                    name = constructor.as_object().get("name");
-                    if (!name.is_empty())
+                    name = constructor.as_object().get_without_side_effects("name");
+                    if (!name.is_undefined())
                         error_object.set("type", name.to_string_without_side_effects());
                 }
             }

@@ -36,7 +36,7 @@ void $262Object::initialize(JS::GlobalObject& global_object)
     define_native_function("evalScript", eval_script, 1, attr);
 
     define_direct_property("agent", m_agent, attr);
-    define_direct_property("gc", global_object.get("gc"), attr);
+    define_direct_property("gc", global_object.get_without_side_effects("gc"), attr);
     define_direct_property("global", &global_object, attr);
     define_direct_property("IsHTMLDDA", m_is_htmldda, attr);
 }
