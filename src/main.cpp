@@ -510,6 +510,10 @@ int main(int argc, char** argv)
     flags |= O_NONBLOCK;
     fcntl(stdout_pipe[0], F_SETFL, flags);
 
+    auto flags2 = fcntl(stdout_pipe[1], F_GETFL);
+    flags2 |= O_NONBLOCK;
+    fcntl(stdout_pipe[1], F_SETFL, flags2);
+
     if (dup2(stdout_pipe[1], STDOUT_FILENO) < 0) {
         perror("dup2");
         return 1;
