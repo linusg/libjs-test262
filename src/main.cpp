@@ -18,9 +18,8 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Bytecode/PassManager.h>
 #include <LibJS/Interpreter.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/Script.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -46,8 +45,9 @@ struct TestError {
     String harness_file;
 };
 
-static Result<NonnullRefPtr<JS::Program>, TestError> parse_program(StringView source, JS::Program::Type program_type)
+static Result<NonnullRefPtr<JS::Script>, TestError> parse_program(JS::Realm& realm, StringView source, JS::Program::Type program_type)
 {
+    // FIXME: Since JS::Interpreter doesn't currently support running modules and JS::Module doesn't have a parse function, we have to still manually parse and lie that a module is a normal script.
     auto parser = JS::Parser(JS::Lexer(source), program_type);
     auto program = parser.parse_program();
     if (parser.has_errors()) {
@@ -58,17 +58,17 @@ static Result<NonnullRefPtr<JS::Program>, TestError> parse_program(StringView so
             ""
         };
     }
-    return program;
+    return adopt_ref(*new JS::Script(realm, move(program)));
 }
 
 template<typename InterpreterT>
-static Result<void, TestError> run_program(InterpreterT& interpreter, JS::Program const& program)
+static Result<void, TestError> run_program(InterpreterT& interpreter, JS::Script& script)
 {
     auto& vm = interpreter.vm();
     if constexpr (IsSame<InterpreterT, JS::Interpreter>) {
-        interpreter.run(interpreter.global_object(), program);
+        interpreter.run(script);
     } else {
-        auto unit = JS::Bytecode::Generator::generate(program);
+        auto unit = JS::Bytecode::Generator::generate(script.parse_node());
         auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
         passes.perform(unit);
         interpreter.run(unit);
@@ -130,50 +130,52 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
     return cache->value.view();
 }
 
-static Result<NonnullRefPtr<JS::Program>, TestError> parse_harness_files(StringView harness_file)
+static Result<NonnullRefPtr<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
 {
     auto source_or_error = read_harness_file(harness_file);
     if (source_or_error.is_error())
         return source_or_error.release_error();
-    auto program_or_error = parse_program(source_or_error.value(), JS::Program::Type::Script);
-    if (program_or_error.is_error()) {
+    auto script_or_error = parse_program(realm, source_or_error.value(), JS::Program::Type::Script);
+    if (script_or_error.is_error()) {
         return TestError {
             NegativePhase::Harness,
-            program_or_error.error().type,
-            program_or_error.error().details,
+            script_or_error.error().type,
+            script_or_error.error().details,
             harness_file
         };
     }
-    return program_or_error.release_value();
+    return script_or_error.release_value();
 }
 
 static Result<void, TestError> run_test(StringView source, JS::Program::Type program_type, Vector<StringView> const& harness_files)
 {
-    auto program_or_error = parse_program(source, program_type);
-    if (program_or_error.is_error())
-        return program_or_error.release_error();
+    auto vm = JS::VM::create();
+    auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
+    auto& realm = ast_interpreter->realm();
+
+    auto script_or_error = parse_program(realm, source, program_type);
+    if (script_or_error.is_error())
+        return script_or_error.release_error();
 
     if (s_parse_only)
         return {};
 
-    auto vm = JS::VM::create();
-    auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
     OwnPtr<JS::Bytecode::Interpreter> bytecode_interpreter = nullptr;
     if (s_use_bytecode)
-        bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object(), ast_interpreter->realm());
+        bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object(), realm);
 
-    auto run_with_interpreter = [&](JS::Program const& program) {
+    auto run_with_interpreter = [&](JS::Script& script) {
         if (s_use_bytecode)
-            return run_program(*bytecode_interpreter, program);
-        return run_program(*ast_interpreter, program);
+            return run_program(*bytecode_interpreter, script);
+        return run_program(*ast_interpreter, script);
     };
 
     for (auto& harness_file : harness_files) {
-        auto harness_program_or_error = parse_harness_files(harness_file);
-        if (harness_program_or_error.is_error())
-            return harness_program_or_error.release_error();
-        auto harness_program = harness_program_or_error.release_value();
-        auto result = run_with_interpreter(*harness_program);
+        auto harness_script_or_error = parse_harness_files(realm, harness_file);
+        if (harness_script_or_error.is_error())
+            return harness_script_or_error.release_error();
+        auto harness_script = harness_script_or_error.release_value();
+        auto result = run_with_interpreter(*harness_script);
         if (result.is_error()) {
             return TestError {
                 NegativePhase::Harness,
@@ -184,7 +186,7 @@ static Result<void, TestError> run_test(StringView source, JS::Program::Type pro
         }
     }
 
-    return run_with_interpreter(*program_or_error.value());
+    return run_with_interpreter(*script_or_error.value());
 }
 
 enum class StrictMode {

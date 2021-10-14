@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Script.h>
 
 $262Object::$262Object(JS::GlobalObject& global_object)
     : JS::Object(JS::Object::ConstructWithoutPrototypeTag::Tag, global_object)
@@ -87,7 +88,8 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
         vm.throw_exception<JS::SyntaxError>(global_object, parser.errors()[0].to_string());
         return {};
     }
-    vm.interpreter().run(global_object, *program);
+    auto script = adopt_ref(*new JS::Script(vm.interpreter().realm(), move(program)));
+    vm.interpreter().run(*script);
     if (vm.exception())
         return {};
     return JS::js_undefined();
