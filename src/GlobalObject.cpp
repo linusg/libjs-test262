@@ -32,7 +32,7 @@ void GlobalObject::visit_edges(JS::Cell::Visitor& visitor)
 
 JS_DEFINE_NATIVE_FUNCTION(GlobalObject::print)
 {
-    auto string = TRY_OR_DISCARD(vm.argument(0).to_string(global_object));
+    auto string = TRY(vm.argument(0).to_string(global_object));
     outln("{}", string);
     return JS::js_undefined();
 }

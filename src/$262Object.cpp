@@ -65,30 +65,24 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::create_realm)
 JS_DEFINE_NATIVE_FUNCTION($262Object::detach_array_buffer)
 {
     auto array_buffer = vm.argument(0);
-    if (!array_buffer.is_object() || !is<JS::ArrayBuffer>(array_buffer.as_object())) {
-        vm.throw_exception<JS::TypeError>(global_object);
-        return {};
-    }
+    if (!array_buffer.is_object() || !is<JS::ArrayBuffer>(array_buffer.as_object()))
+        return vm.throw_completion<JS::TypeError>(global_object);
     auto& array_buffer_object = static_cast<JS::ArrayBuffer&>(array_buffer.as_object());
-    if (!JS::same_value(array_buffer_object.detach_key(), vm.argument(1))) {
-        vm.throw_exception<JS::TypeError>(global_object);
-        return {};
-    }
+    if (!JS::same_value(array_buffer_object.detach_key(), vm.argument(1)))
+        return vm.throw_completion<JS::TypeError>(global_object);
     array_buffer_object.detach_buffer();
     return JS::js_null();
 }
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
 {
-    auto source = TRY_OR_DISCARD(vm.argument(0).to_string(global_object));
+    auto source = TRY(vm.argument(0).to_string(global_object));
     auto parser = JS::Parser(JS::Lexer(source));
     auto program = parser.parse_program();
-    if (parser.has_errors()) {
-        vm.throw_exception<JS::SyntaxError>(global_object, parser.errors()[0].to_string());
-        return {};
-    }
+    if (parser.has_errors())
+        return vm.throw_completion<JS::SyntaxError>(global_object, parser.errors()[0].to_string());
     vm.interpreter().run(global_object, *program);
-    if (vm.exception())
-        return {};
+    if (auto* exception = vm.exception())
+        return JS::throw_completion(exception->value());
     return JS::js_undefined();
 }
