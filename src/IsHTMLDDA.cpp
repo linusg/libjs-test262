@@ -13,7 +13,7 @@ IsHTMLDDA::IsHTMLDDA(JS::GlobalObject& global_object)
 {
 }
 
-JS::Value IsHTMLDDA::call()
+JS::ThrowCompletionOr<JS::Value> IsHTMLDDA::call()
 {
     auto& vm = this->vm();
     if (vm.argument_count() == 0)
@@ -27,8 +27,10 @@ JS::Value IsHTMLDDA::call()
     return JS::js_undefined();
 }
 
-JS::Value IsHTMLDDA::construct(JS::FunctionObject&)
+JS::ThrowCompletionOr<JS::Object*> IsHTMLDDA::construct(JS::FunctionObject&)
 {
     // Not sure if we need to support construction, but ¯\_(ツ)_/¯
-    return call();
+    auto& vm = this->vm();
+    auto& global_object = this->global_object();
+    return vm.throw_completion<JS::TypeError>(global_object, JS::ErrorType::NotAConstructor, "IsHTMLDDA");
 }
