@@ -357,10 +357,20 @@ static Result<TestMetadata, String> extract_metadata(StringView source)
 
 static bool verify_test(Result<void, TestError>& result, TestMetadata const& metadata, JsonObject& output)
 {
-    if (result.is_error() && result.error().phase == NegativePhase::Harness) {
-        output.set("harness_error", true);
-        output.set("harness_file", result.error().harness_file);
-        output.set("result", "harness_error");
+    if (result.is_error()) {
+        if (result.error().phase == NegativePhase::Harness) {
+            output.set("harness_error", true);
+            output.set("harness_file", result.error().harness_file);
+            output.set("result", "harness_error");
+        } else if (result.error().phase == NegativePhase::Runtime) {
+            auto& error_type = result.error().type;
+            auto& error_details = result.error().details;
+            if ((error_type == "InternalError"sv && error_details.starts_with("TODO("))
+                || (error_type == "Test262Error"sv && error_details.ends_with(" but got a InternalError"sv))) {
+                output.set("todo_error", true);
+                output.set("result", "todo_error");
+            }
+        }
     }
 
     auto phase_to_string = [](NegativePhase phase) {
