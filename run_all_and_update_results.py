@@ -166,6 +166,7 @@ def main() -> None:
                     "timeout_error": libjs_test262_results["TIMEOUT_ERROR"],
                     "process_error": libjs_test262_results["PROCESS_ERROR"],
                     "runner_exception": libjs_test262_results["RUNNER_EXCEPTION"],
+                    "todo_error": libjs_test262_results["TODO_ERROR"],
                 },
             },
             "test262-bytecode": {
@@ -180,6 +181,7 @@ def main() -> None:
                     "timeout_error": libjs_test262_bc_results["TIMEOUT_ERROR"],
                     "process_error": libjs_test262_bc_results["PROCESS_ERROR"],
                     "runner_exception": libjs_test262_bc_results["RUNNER_EXCEPTION"],
+                    "todo_error": libjs_test262_bc_results["TODO_ERROR"],
                 },
             },
             "test262-parser-tests": {

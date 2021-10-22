@@ -37,6 +37,7 @@ class TestResult(str, Enum):
     TIMEOUT_ERROR = "TIMEOUT_ERROR"
     PROCESS_ERROR = "PROCESS_ERROR"
     RUNNER_EXCEPTION = "RUNNER_EXCEPTION"
+    TODO_ERROR = "TODO_ERROR"
 
 
 @dataclass
@@ -57,6 +58,7 @@ EMOJIS = {
     TestResult.TIMEOUT_ERROR: "💀",
     TestResult.PROCESS_ERROR: "💥️",
     TestResult.RUNNER_EXCEPTION: "🐍",
+    TestResult.TODO_ERROR: "📝",
 }
 
 NON_FAIL_RESULTS = [TestResult.PASSED, TestResult.SKIPPED]
@@ -188,6 +190,8 @@ def run_tests(
                 test_result_state = TestResult.PASSED
             elif result == "skipped":
                 test_result_state = TestResult.SKIPPED
+            elif result == "todo_error":
+                test_result_state = TestResult.TODO_ERROR
             elif result != "failed":
                 raise Exception(f"Unknown error code: {result} from {test_result}")
 
