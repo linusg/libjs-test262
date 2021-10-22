@@ -377,18 +377,30 @@ static bool verify_test(Result<void, TestError>& result, TestMetadata const& met
         VERIFY_NOT_REACHED();
     };
 
-    if (!metadata.is_negative) {
-        if (!result.is_error())
-            return true;
-
-        auto& error = result.error();
-
+    auto error_to_json = [&phase_to_string](TestError const& error) {
         JsonObject error_object;
         error_object.set("phase", phase_to_string(error.phase));
         error_object.set("type", error.type);
         error_object.set("details", error.details);
+        return error_object;
+    };
+
+    JsonValue expected_error;
+    JsonValue got_error;
+
+    ScopeGuard set_error = [&] {
+        JsonObject error_object;
+        error_object.set("expected", expected_error);
+        error_object.set("got", got_error);
 
         output.set("error", error_object);
+    };
+
+    if (!metadata.is_negative) {
+        if (!result.is_error())
+            return true;
+
+        got_error = JsonValue { error_to_json(result.error()) };
         return false;
     }
 
@@ -396,34 +408,22 @@ static bool verify_test(Result<void, TestError>& result, TestMetadata const& met
     expected_error_object.set("phase", phase_to_string(metadata.phase));
     expected_error_object.set("type", metadata.type.to_string());
 
-    JsonObject error_object;
-    error_object.set("expected", expected_error_object);
+    expected_error = expected_error_object;
 
     if (!result.is_error()) {
         if (s_parse_only && metadata.phase != NegativePhase::ParseOrEarly) {
-            // Expected non-parse error but did not get it.
+            // Expected non-parse error but did not get it but we never got to that phase.
             return true;
         }
 
-        error_object.set("got", JsonValue {});
-        output.set("error", error_object);
         return false;
     }
 
-    auto& error = result.error();
+    auto const& error = result.error();
 
-    if (error.phase == metadata.phase && error.type == metadata.type)
-        return true;
+    got_error = JsonValue { error_to_json(error) };
 
-    JsonObject got_error_object;
-    got_error_object.set("phase", phase_to_string(error.phase));
-    got_error_object.set("type", error.type);
-    got_error_object.set("details", error.details);
-
-    error_object.set("got", got_error_object);
-
-    output.set("error", error_object);
-    return false;
+    return error.phase == metadata.phase && error.type == metadata.type;
 }
 
 static FILE* saved_stdout_fd;
