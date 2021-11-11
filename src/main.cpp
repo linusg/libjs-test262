@@ -71,7 +71,7 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, JS::Progra
         auto unit = JS::Bytecode::Generator::generate(program);
         auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
         passes.perform(unit);
-        interpreter.run(unit);
+        TRY_OR_DISCARD(interpreter.run(unit));
     }
 
     if (auto* exception = vm.exception()) {
