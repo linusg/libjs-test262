@@ -9,6 +9,7 @@
 #include <AK/Format.h>
 #include <AK/JsonObject.h>
 #include <AK/Result.h>
+#include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
@@ -567,6 +568,7 @@ int main(int argc, char** argv)
         perror("timer_create");
         return 1;
     }
+    ScopeGuard destroy_timer = [timer_id] { timer_delete(timer_id); };
 
     struct itimerspec timeout_timer;
     timeout_timer.it_value.tv_sec = timeout;
