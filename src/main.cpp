@@ -326,7 +326,10 @@ static Result<TestMetadata, String> extract_metadata(StringView source)
             }
 
             for (auto flag : flags) {
-                if (flag == "noStrict"sv || flag == "raw"sv) {
+                if (flag == "raw"sv) {
+                    metadata.strict_mode = StrictMode::NoStrict;
+                    metadata.harness_files.clear();
+                } else if (flag == "noStrict"sv) {
                     metadata.strict_mode = StrictMode::NoStrict;
                 } else if (flag == "onlyStrict"sv) {
                     metadata.strict_mode = StrictMode::OnlyStrict;
