@@ -17,6 +17,7 @@ import os
 import resource
 import signal
 import subprocess
+import sys
 import threading
 import traceback
 from argparse import ArgumentParser
@@ -114,6 +115,7 @@ def run_tests(
     timeout: int,
     memory_limit: int,
     on_progress_change: Callable[[int], None] | None,
+    forward_stderr: Callable[[str], None] | None,
 ) -> list[TestRun]:
 
     current_test = 0
@@ -206,12 +208,23 @@ def run_tests(
             current_test += 1
 
         if process_failed and not have_stopping_result:
+            if forward_stderr is not None and process_result.stderr.strip() != "":
+                forward_stderr(
+                    f"Last tests ran: {test_file_paths[current_test]} before failing with stderr output:\n\n"
+                    + process_result.stderr
+                )
+
             add_result(
                 TestResult.PROCESS_ERROR,
                 "\n".join(test_results),
                 process_result.returncode,
             )
             current_test += 1
+        elif forward_stderr is not None and process_result.stderr.strip() != "":
+            forward_stderr(
+                "Process did not fail but still there is stderr output:\n\n"
+                + process_result.stderr
+            )
 
         if on_progress_change is not None:
             on_progress_change(current_test - start_count)
@@ -233,6 +246,7 @@ class Runner:
         per_file: bool = False,
         fail_only: bool = False,
         parse_only: bool = False,
+        forward_stderr: bool = False,
     ) -> None:
         self.libjs_test262_runner = libjs_test262_runner
         self.test262_root = test262_root
@@ -252,6 +266,19 @@ class Runner:
         self.parse_only = parse_only
         self.update_function: Callable[[int], None] | None = None
         self.print_output: Callable[[Optional[Any]], Any] = print
+
+        self.forward_stderr_function: Callable[[str], None] | None
+        if forward_stderr:
+            if self.silent:
+                self.forward_stderr_function = lambda message: print(
+                    message, file=sys.stderr
+                )
+            else:
+                self.forward_stderr_function = lambda message: tqdm.write(
+                    message, file=sys.stderr
+                )
+        else:
+            self.forward_stderr_function = None
 
     def log(self, message: str) -> None:
         if not self.silent and not self.per_file:
@@ -342,6 +369,7 @@ class Runner:
                 timeout=self.timeout,
                 memory_limit=self.memory_limit,
                 on_progress_change=self.update_function,
+                forward_stderr=self.forward_stderr_function,
             )
         except Exception as e:
             return [
@@ -517,6 +545,11 @@ def main() -> None:
         default="",
         help="ignore any tests matching the glob",
     )
+    parser.add_argument(
+        "--forward-stderr",
+        action="store_true",
+        help="forward all stderr output to the stderr of the script",
+    )
 
     args = parser.parse_args()
 
@@ -537,6 +570,7 @@ def main() -> None:
         args.per_file,
         args.fail_only,
         args.parse_only,
+        args.forward_stderr,
     )
     runner.find_tests(args.pattern, args.ignore)
     runner.run()
