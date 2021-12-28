@@ -243,7 +243,7 @@ class Runner:
         silent: bool = False,
         verbose: bool = False,
         use_bytecode: bool = False,
-        per_file: bool = False,
+        track_per_file: bool = False,
         fail_only: bool = False,
         parse_only: bool = False,
         forward_stderr: bool = False,
@@ -256,7 +256,7 @@ class Runner:
         self.silent = silent
         self.verbose = verbose
         self.use_bytecode = use_bytecode
-        self.per_file = per_file
+        self.track_per_file = track_per_file
         self.fail_only = fail_only
         self.files: list[Path] = []
         self.directory_result_map: dict[str, dict] = {}
@@ -281,7 +281,7 @@ class Runner:
             self.forward_stderr_function = None
 
     def log(self, message: str) -> None:
-        if not self.silent and not self.per_file:
+        if not self.silent:
             self.print_output(message)
 
     def find_tests(self, pattern: str, ignore: str) -> None:
@@ -307,8 +307,7 @@ class Runner:
         self.total_count = len(self.files)
         self.log(f"Found {self.total_count}.")
 
-        if not self.per_file:
-            self.build_directory_result_map()
+        self.build_directory_result_map()
 
     def build_directory_result_map(self) -> None:
         for file in self.files:
@@ -325,14 +324,14 @@ class Runner:
 
     def count_result(self, test_run: TestRun) -> None:
         relative_file = test_run.file.relative_to(self.test262_root)
-        if self.per_file:
+        if self.track_per_file:
             self.file_result_map[str(relative_file)] = test_run.result.name
-        else:
-            directory = relative_file.parent
-            counter = self.directory_result_map
-            for segment in directory.parts:
-                counter[segment]["results"][test_run.result] += 1
-                counter = counter[segment]["children"]
+
+        directory = relative_file.parent
+        counter = self.directory_result_map
+        for segment in directory.parts:
+            counter[segment]["results"][test_run.result] += 1
+            counter = counter[segment]["children"]
 
     def report(self) -> None:
         def print_tree(tree, path, level):
@@ -518,8 +517,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--per-file",
-        action="store_true",
-        help="show per-file results instead of per-directory results",
+        default=None,
+        type=str,
+        metavar="PATH",
+        help="output per-file results to file",
     )
     logging_group = parser.add_mutually_exclusive_group()
     logging_group.add_argument(
@@ -553,11 +554,6 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.per_file:
-        args.json = True
-        args.verbose = False
-        args.fail_only = False
-
     runner = Runner(
         Path(args.libjs_test262_runner).resolve(),
         Path(args.test262_root).resolve(),
@@ -567,7 +563,7 @@ def main() -> None:
         args.silent,
         args.verbose,
         args.use_bytecode,
-        args.per_file,
+        args.per_file is not None,
         args.fail_only,
         args.parse_only,
         args.forward_stderr,
@@ -577,13 +573,19 @@ def main() -> None:
     if args.json:
         data = {
             "duration": runner.duration.total_seconds(),
-            "results": runner.file_result_map
-            if args.per_file
-            else runner.directory_result_map,
+            "results": runner.directory_result_map,
         }
         print(json.dumps(data))
     else:
         runner.report()
+
+    if args.per_file is not None:
+        data = {
+            "duration": runner.duration.total_seconds(),
+            "results": runner.file_result_map,
+        }
+        with open(args.per_file, "w") as per_file_file:
+            json.dump(data, per_file_file)
 
 
 if __name__ == "__main__":
