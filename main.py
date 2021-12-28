@@ -247,6 +247,7 @@ class Runner:
         fail_only: bool = False,
         parse_only: bool = False,
         forward_stderr: bool = False,
+        summary: bool = False,
     ) -> None:
         self.libjs_test262_runner = libjs_test262_runner
         self.test262_root = test262_root
@@ -280,6 +281,8 @@ class Runner:
         else:
             self.forward_stderr_function = None
 
+        self.summary = summary
+
     def log(self, message: str) -> None:
         if not self.silent:
             self.print_output(message)
@@ -307,7 +310,20 @@ class Runner:
         self.total_count = len(self.files)
         self.log(f"Found {self.total_count}.")
 
-        self.build_directory_result_map()
+        if self.total_count == 0:
+            return
+
+        if not self.summary:
+            self.build_directory_result_map()
+        else:
+            root_folder = self.files[0].relative_to(self.test262_root).parent.parts[0]
+            self.directory_result_map = {
+                root_folder: {
+                    "count": self.total_count,
+                    "results": {result: 0 for result in TestResult},
+                    "children": {},
+                }
+            }
 
     def build_directory_result_map(self) -> None:
         for file in self.files:
@@ -329,6 +345,11 @@ class Runner:
 
         directory = relative_file.parent
         counter = self.directory_result_map
+
+        if self.summary:
+            counter[directory.parts[0]]["results"][test_run.result] += 1
+            return
+
         for segment in directory.parts:
             counter[segment]["results"][test_run.result] += 1
             counter = counter[segment]["children"]
@@ -551,6 +572,11 @@ def main() -> None:
         action="store_true",
         help="forward all stderr output to the stderr of the script",
     )
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="only show the top level results",
+    )
 
     args = parser.parse_args()
 
@@ -567,6 +593,7 @@ def main() -> None:
         args.fail_only,
         args.parse_only,
         args.forward_stderr,
+        args.summary,
     )
     runner.find_tests(args.pattern, args.ignore)
     runner.run()
