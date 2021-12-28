@@ -10,16 +10,21 @@ from main import TestResult, EMOJIS
 
 
 class ResultParser:
-    def __init__(self, old_path: Path, new_path: Path, regressions: bool) -> None:
+    def __init__(
+        self, old_path: Path, new_path: Path, regressions: bool, intersection_only: bool
+    ) -> None:
         old_results = json.loads(old_path.read_text())
         new_results = json.loads(new_path.read_text())
 
         self.duration_delta = float(new_results["duration"]) - float(
             old_results["duration"]
         )
-        self.old_results: dict[str, str] = old_results["results"]
+        self.old_results: dict[str, str] = {
+            k: v for k, v in sorted(old_results["results"].items())
+        }
         self.new_results: dict[str, str] = new_results["results"]
         self.regressions = regressions
+        self.intersection_only = intersection_only
 
         self.new_tests: dict[str, str] = {}
         self.removed_tests: dict[str, str] = {}
@@ -39,11 +44,12 @@ class ResultParser:
 
     def populate_test_dicts(self) -> None:
         for path, result in self.old_results.items():
-            new_result = self.new_results[path]
+            new_result = self.new_results.get(path, None)
 
             if new_result is None:
-                self.longest_path_length = max(self.longest_path_length, len(path))
-                self.removed_tests[path] = result
+                if not self.intersection_only:
+                    self.longest_path_length = max(self.longest_path_length, len(path))
+                    self.removed_tests[path] = result
             elif result != new_result:
                 self.longest_path_length = max(self.longest_path_length, len(path))
                 self.diff_tests[path] = {
@@ -82,34 +88,40 @@ class ResultParser:
 
     def print_summary_results(self, summary_map: dict) -> None:
         for v in TestResult:
+            if summary_map[v] == 0:
+                continue
             print(
                 f"{summary_map[v]:+{self.summary_column_widths[v]}d} {EMOJIS[v]}   ",
                 end="",
             )
 
     def print_full_results(self) -> None:
-        print("Duration:")
-        print(f"     {self.duration_delta:+.2f}s")
-
-        has_new_tests = len(self.new_tests) > 0
-        has_removed_tests = len(self.removed_tests) > 0
         has_diff_tests = len(self.diff_tests) > 0
-
-        if not has_new_tests and not has_removed_tests and not has_diff_tests:
+        if self.intersection_only and not has_diff_tests:
             return
 
-        print()
-        print("Summary:")
+        if not self.intersection_only:
+            print("Duration:")
+            print(f"     {self.duration_delta:+.2f}s")
 
-        if has_new_tests:
-            print("    New Tests:\n        ", end="")
-            self.print_summary_results(self.summary["new_tests"])
-            print()
+            has_new_tests = len(self.new_tests) > 0
+            has_removed_tests = len(self.removed_tests) > 0
 
-        if has_removed_tests:
-            print("    Removed Tests:\n        ", end="")
-            self.print_summary_results(self.summary["removed_tests"])
+            if not has_new_tests and not has_removed_tests and not has_diff_tests:
+                return
+
             print()
+            print("Summary:")
+
+            if has_new_tests:
+                print("    New Tests:\n        ", end="")
+                self.print_summary_results(self.summary["new_tests"])
+                print()
+
+            if has_removed_tests:
+                print("    Removed Tests:\n        ", end="")
+                self.print_summary_results(self.summary["removed_tests"])
+                print()
 
         if has_diff_tests:
             print("    Diff Tests:\n        ", end="")
@@ -169,9 +181,17 @@ def main() -> None:
         action="store_true",
         help="only show regressions",
     )
+    parser.add_argument(
+        "-i",
+        "--intersection-only",
+        action="store_true",
+        help="show only differences in tests which are present in both results",
+    )
     args = parser.parse_args()
 
-    ResultParser(Path(args.old), Path(args.new), args.regressions).print_results()
+    ResultParser(
+        Path(args.old), Path(args.new), args.regressions, args.intersection_only
+    ).print_results()
 
 
 if __name__ == "__main__":
