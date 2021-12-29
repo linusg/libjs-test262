@@ -40,7 +40,7 @@ python3 main.py --libjs-test262-runner ./Build/libjs-test262-runner --test262-ro
 ## Options
 
 ```text
-usage: main.py [-h] -j PATH [-b] -t PATH [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [--memory-limit MEMORY_LIMIT] [--json] [--per-file] [-s | -v] [-f] [--parse-only] [--ignore IGNORE]
+usage: main.py [-h] [-j PATH] [-b] [-t PATH] [-p PATTERN] [-c CONCURRENCY] [--timeout TIMEOUT] [--memory-limit MEMORY_LIMIT] [--json] [--per-file PATH] [-s | -v] [-f] [--parse-only] [--ignore IGNORE] [--forward-stderr] [--summary]
 
 Run the test262 ECMAScript test suite with SerenityOS's LibJS
 
@@ -59,12 +59,14 @@ optional arguments:
   --memory-limit MEMORY_LIMIT
                         memory limit for each test run in megabytes (defaults to 512)
   --json                print the test results as JSON
-  --per-file            show per-file results instead of per-directory results
+  --per-file PATH       output per-file results to file
   -s, --silent          don't print any progress information
   -v, --verbose         print output of test runs
   -f, --fail-only       only show failed tests
   --parse-only          only parse the test files and fail/pass based on that
   --ignore IGNORE       ignore any tests matching the glob
+  --forward-stderr      forward all stderr output to the stderr of the script
+  --summary             only show the top level results
 ```
 
 ## Current status
