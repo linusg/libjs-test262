@@ -64,6 +64,20 @@ def main() -> None:
         metavar="PATH",
         help="path to the results JSON file",
     )
+    parser.add_argument(
+        "--per-file-output",
+        default=None,
+        type=str,
+        metavar="PATH",
+        help="output the per-file result of the non-bytecode run to this file",
+    )
+    parser.add_argument(
+        "--per-file-bytecode-output",
+        default=None,
+        type=str,
+        metavar="PATH",
+        help="output the per-file result of the bytecode run to this file",
+    )
     args = parser.parse_args()
 
     libjs_test262 = Path(__file__).parent
@@ -127,7 +141,12 @@ def main() -> None:
             f"python3 {libjs_test262_main_py} "
             f"--libjs-test262-runner {libjs_test262_runner} "
             f"--test262 {test262} "
-            "--silent --json"
+            "--silent --summary --json "
+            + (
+                ""
+                if args.per_file_output is None
+                else f"--per-file {args.per_file_output} "
+            )
         )
     )
     libjs_test262_results = libjs_test262_output["results"]["test"]["results"]
@@ -139,7 +158,12 @@ def main() -> None:
             f"python3 {libjs_test262_main_py} "
             f"--libjs-test262-runner {libjs_test262_runner} "
             f"--test262 {test262} "
-            "--silent --json --use-bytecode"
+            "--silent --summary --json --use-bytecode "
+            + (
+                ""
+                if args.per_file_bytecode_output is None
+                else f"--per-file {args.per_file_bytecode_output} "
+            )
         )
     )
     libjs_test262_bc_results = libjs_test262_bc_output["results"]["test"]["results"]
