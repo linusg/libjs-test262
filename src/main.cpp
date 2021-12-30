@@ -75,7 +75,7 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, JS::Progra
         auto result = interpreter.run(unit);
         // Until the AST interpreter gives a completion we just rethrow any exception that was thrown.
         if (result.is_error())
-            vm.throw_exception(interpreter.global_object(), result.throw_completion().value());
+            vm.throw_exception(interpreter.global_object(), *result.throw_completion().value());
     }
 
     if (auto* exception = vm.exception()) {
