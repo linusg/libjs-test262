@@ -66,25 +66,23 @@ template<typename InterpreterT>
 static Result<void, TestError> run_program(InterpreterT& interpreter, JS::Program const& program)
 {
     auto& vm = interpreter.vm();
+    auto result = JS::ThrowCompletionOr<JS::Value> { JS::js_undefined() };
     if constexpr (IsSame<InterpreterT, JS::Interpreter>) {
-        interpreter.run(interpreter.global_object(), program);
+        result = interpreter.run(interpreter.global_object(), program);
     } else {
         auto unit = JS::Bytecode::Generator::generate(program);
         auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
         passes.perform(unit);
-        auto result = interpreter.run(unit);
-        // Until the AST interpreter gives a completion we just rethrow any exception that was thrown.
-        if (result.is_error())
-            vm.throw_exception(interpreter.global_object(), *result.throw_completion().value());
+        result = interpreter.run(unit);
     }
 
-    if (auto* exception = vm.exception()) {
+    if (result.is_error()) {
         vm.clear_exception();
+        auto error_value = *result.throw_completion().value();
         TestError error;
         error.phase = NegativePhase::Runtime;
-        if (exception->value().is_object()) {
-
-            auto& object = exception->value().as_object();
+        if (error_value.is_object()) {
+            auto& object = error_value.as_object();
 
             auto name = object.get_without_side_effects("name");
             if (!name.is_empty() && !name.is_accessor()) {
@@ -103,7 +101,7 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, JS::Progra
                 error.details = message.to_string_without_side_effects();
         }
         if (error.type.is_empty())
-            error.type = exception->value().to_string_without_side_effects();
+            error.type = error_value.to_string_without_side_effects();
         return error;
     }
     return {};

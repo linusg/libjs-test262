@@ -81,8 +81,6 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
     auto program = parser.parse_program();
     if (parser.has_errors())
         return vm.throw_completion<JS::SyntaxError>(global_object, parser.errors()[0].to_string());
-    vm.interpreter().run(global_object, *program);
-    if (auto* exception = vm.exception())
-        return JS::throw_completion(exception->value());
+    TRY(vm.interpreter().run(global_object, *program));
     return JS::js_undefined();
 }
