@@ -11,11 +11,10 @@
 #include "IsHTMLDDA.h"
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Interpreter.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Script.h>
 
 $262Object::$262Object(JS::GlobalObject& global_object)
     : JS::Object(JS::Object::ConstructWithoutPrototypeTag::Tag, global_object)
@@ -77,10 +76,9 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::detach_array_buffer)
 JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
 {
     auto source = TRY(vm.argument(0).to_string(global_object));
-    auto parser = JS::Parser(JS::Lexer(source));
-    auto program = parser.parse_program();
-    if (parser.has_errors())
-        return vm.throw_completion<JS::SyntaxError>(global_object, parser.errors()[0].to_string());
-    TRY(vm.interpreter().run(global_object, *program));
+    auto script_or_error = JS::Script::parse(source, *vm.current_realm());
+    if (script_or_error.is_error())
+        return vm.throw_completion<JS::SyntaxError>(global_object, script_or_error.error()[0].to_string());
+    TRY(vm.interpreter().run(script_or_error.value()));
     return JS::js_undefined();
 }
