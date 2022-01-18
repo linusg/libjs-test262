@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2021, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2021-2022, David Tuin <davidot@serenityos.org>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -19,9 +19,8 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Bytecode/PassManager.h>
 #include <LibJS/Interpreter.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/Script.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -47,30 +46,47 @@ struct TestError {
     String harness_file;
 };
 
-static Result<NonnullRefPtr<JS::Program>, TestError> parse_program(StringView source, JS::Program::Type program_type)
+using ScriptOrModuleProgram = Variant<NonnullRefPtr<JS::Script>, NonnullRefPtr<JS::SourceTextModule>>;
+
+template<typename ScriptType>
+static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath)
 {
-    auto parser = JS::Parser(JS::Lexer(source), program_type);
-    auto program = parser.parse_program();
-    if (parser.has_errors()) {
+    auto script_or_error = ScriptType::parse(source, realm, filepath);
+    if (script_or_error.is_error()) {
         return TestError {
             NegativePhase::ParseOrEarly,
             "SyntaxError",
-            parser.errors()[0].to_string(),
+            script_or_error.error()[0].to_string(),
             ""
         };
     }
-    return program;
+    return ScriptOrModuleProgram { script_or_error.release_value() };
+}
+
+static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath, JS::Program::Type program_type)
+{
+    if (program_type == JS::Program::Type::Script)
+        return parse_program<JS::Script>(realm, source, filepath);
+    return parse_program<JS::SourceTextModule>(realm, source, filepath);
 }
 
 template<typename InterpreterT>
-static Result<void, TestError> run_program(InterpreterT& interpreter, JS::Program const& program)
+static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrModuleProgram& program)
 {
     auto& vm = interpreter.vm();
     auto result = JS::ThrowCompletionOr<JS::Value> { JS::js_undefined() };
     if constexpr (IsSame<InterpreterT, JS::Interpreter>) {
-        result = interpreter.run(interpreter.global_object(), program);
+        result = program.visit(
+            [&](auto& visitor) {
+                return interpreter.run(*visitor);
+            });
     } else {
-        auto unit = JS::Bytecode::Generator::generate(program);
+        auto program_node = program.visit(
+            [](auto& visitor) -> NonnullRefPtr<JS::Program> {
+                return visitor->parse_node();
+            });
+
+        auto unit = JS::Bytecode::Generator::generate(program_node);
         auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
         passes.perform(unit);
         result = interpreter.run(unit);
@@ -132,12 +148,12 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
     return cache->value.view();
 }
 
-static Result<NonnullRefPtr<JS::Program>, TestError> parse_harness_files(StringView harness_file)
+static Result<NonnullRefPtr<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
 {
     auto source_or_error = read_harness_file(harness_file);
     if (source_or_error.is_error())
         return source_or_error.release_error();
-    auto program_or_error = parse_program(source_or_error.value(), JS::Program::Type::Script);
+    auto program_or_error = parse_program<JS::Script>(realm, source_or_error.value(), harness_file);
     if (program_or_error.is_error()) {
         return TestError {
             NegativePhase::Harness,
@@ -146,36 +162,51 @@ static Result<NonnullRefPtr<JS::Program>, TestError> parse_harness_files(StringV
             harness_file
         };
     }
-    return program_or_error.release_value();
+    return program_or_error.release_value().get<NonnullRefPtr<JS::Script>>();
 }
 
-static Result<void, TestError> run_test(StringView source, JS::Program::Type program_type, Vector<StringView> const& harness_files)
+static Result<void, TestError> run_test(StringView source, StringView filepath, JS::Program::Type program_type, Vector<StringView> const& harness_files)
 {
-    auto program_or_error = parse_program(source, program_type);
+    if (s_parse_only) {
+        // Creating the vm and interpreter is heavy so we just parse directly here.
+        auto parser = JS::Parser(JS::Lexer(source, filepath), program_type);
+        auto program_or_error = parser.parse_program();
+        if (parser.has_errors()) {
+            return TestError {
+                NegativePhase::ParseOrEarly,
+                "SyntaxError",
+                parser.errors()[0].to_string(),
+                ""
+            };
+        }
+        return {};
+    }
+
+    auto vm = JS::VM::create();
+    vm->enable_default_host_import_module_dynamically_hook();
+    auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
+    auto& realm = ast_interpreter->realm();
+
+    auto program_or_error = parse_program(realm, source, filepath, program_type);
     if (program_or_error.is_error())
         return program_or_error.release_error();
 
-    if (s_parse_only)
-        return {};
-
-    auto vm = JS::VM::create();
-    auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
     OwnPtr<JS::Bytecode::Interpreter> bytecode_interpreter = nullptr;
     if (s_use_bytecode)
         bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object(), ast_interpreter->realm());
 
-    auto run_with_interpreter = [&](JS::Program const& program) {
+    auto run_with_interpreter = [&](ScriptOrModuleProgram& program) {
         if (s_use_bytecode)
             return run_program(*bytecode_interpreter, program);
         return run_program(*ast_interpreter, program);
     };
 
     for (auto& harness_file : harness_files) {
-        auto harness_program_or_error = parse_harness_files(harness_file);
+        auto harness_program_or_error = parse_harness_files(realm, harness_file);
         if (harness_program_or_error.is_error())
             return harness_program_or_error.release_error();
-        auto harness_program = harness_program_or_error.release_value();
-        auto result = run_with_interpreter(*harness_program);
+        ScriptOrModuleProgram harness_program { harness_program_or_error.release_value() };
+        auto result = run_with_interpreter(harness_program);
         if (result.is_error()) {
             return TestError {
                 NegativePhase::Harness,
@@ -186,7 +217,7 @@ static Result<void, TestError> run_test(StringView source, JS::Program::Type pro
         }
     }
 
-    return run_with_interpreter(*program_or_error.value());
+    return run_with_interpreter(program_or_error.value());
 }
 
 enum class StrictMode {
@@ -662,7 +693,7 @@ int main(int argc, char** argv)
             result_object.set("strict_mode", false);
 
             ARM_TIMER();
-            auto result = run_test(original_contents, metadata.program_type, metadata.harness_files);
+            auto result = run_test(original_contents, path, metadata.program_type, metadata.harness_files);
             DISARM_TIMER();
 
             String first_output = collect_output();
@@ -672,6 +703,10 @@ int main(int argc, char** argv)
             passed = verify_test(result, metadata, result_object);
             if (metadata.is_async && !s_parse_only) {
                 if (!first_output.contains("Test262:AsyncTestComplete") || first_output.contains("Test262:AsyncTestFailure")) {
+                    result_object.set("async_fail", true);
+                    if (first_output.is_null())
+                        result_object.set("output", JsonValue { AK::JsonValue::Type::Null });
+
                     passed = false;
                 }
             }
@@ -681,7 +716,7 @@ int main(int argc, char** argv)
             result_object.set("strict_mode", true);
 
             ARM_TIMER();
-            auto result = run_test(with_strict, metadata.program_type, metadata.harness_files);
+            auto result = run_test(with_strict, path, metadata.program_type, metadata.harness_files);
             DISARM_TIMER();
 
             String first_output = collect_output();
@@ -691,6 +726,10 @@ int main(int argc, char** argv)
             passed = verify_test(result, metadata, result_object);
             if (metadata.is_async && !s_parse_only) {
                 if (!first_output.contains("Test262:AsyncTestComplete") || first_output.contains("Test262:AsyncTestFailure")) {
+                    result_object.set("async_fail", true);
+                    if (first_output.is_null())
+                        result_object.set("output", JsonValue { AK::JsonValue::Type::Null });
+
                     passed = false;
                 }
             }
