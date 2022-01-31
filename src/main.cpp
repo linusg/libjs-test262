@@ -88,8 +88,8 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrMo
 
         auto unit = JS::Bytecode::Generator::generate(program_node);
         auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
-        passes.perform(unit);
-        result = interpreter.run(unit);
+        passes.perform(*unit);
+        result = interpreter.run(*unit);
     }
 
     if (result.is_error()) {
