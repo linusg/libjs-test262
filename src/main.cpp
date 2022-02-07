@@ -73,7 +73,6 @@ static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, 
 template<typename InterpreterT>
 static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrModuleProgram& program)
 {
-    auto& vm = interpreter.vm();
     auto result = JS::ThrowCompletionOr<JS::Value> { JS::js_undefined() };
     if constexpr (IsSame<InterpreterT, JS::Interpreter>) {
         result = program.visit(
@@ -93,7 +92,6 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrMo
     }
 
     if (result.is_error()) {
-        vm.clear_exception();
         auto error_value = *result.throw_completion().value();
         TestError error;
         error.phase = NegativePhase::Runtime;
