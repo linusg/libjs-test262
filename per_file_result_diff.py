@@ -100,12 +100,12 @@ class ResultParser:
         if self.intersection_only and not has_diff_tests:
             return
 
+        has_new_tests = len(self.new_tests) > 0
+        has_removed_tests = len(self.removed_tests) > 0
+
         if not self.intersection_only:
             print("Duration:")
             print(f"     {self.duration_delta:+.2f}s")
-
-            has_new_tests = len(self.new_tests) > 0
-            has_removed_tests = len(self.removed_tests) > 0
 
             if not has_new_tests and not has_removed_tests and not has_diff_tests:
                 return
