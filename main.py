@@ -22,6 +22,7 @@ import threading
 import traceback
 from argparse import ArgumentParser
 from dataclasses import dataclass
+from collections import Counter
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -114,7 +115,7 @@ def run_tests(
     parse_only: bool,
     timeout: int,
     memory_limit: int,
-    on_progress_change: Callable[[int], None] | None,
+    on_progress_change: Callable[[int, dict[str, int]], None] | None,
     forward_stderr: Callable[[str], None] | None,
 ) -> list[TestRun]:
 
@@ -122,20 +123,25 @@ def run_tests(
     results = []
 
     def add_result(
+        iteration_results: list[TestRun],
         result: TestResult,
         output: str = "",
         exit_code: int = 0,
         strict_mode: bool = False,
     ) -> None:
-        results.append(
+        iteration_results.append(
             TestRun(
                 test_file_paths[current_test], result, output, exit_code, strict_mode
             )
         )
 
+    new_results = []
     while current_test < len(test_file_paths):
         start_count = current_test
         process_failed = False
+        results.extend(new_results)
+        new_results = []
+
         try:
             process_result: Any = run_streaming_script(
                 libjs_test262_runner,
@@ -204,7 +210,7 @@ def run_tests(
             else:
                 output = json.dumps(test_result, indent=2, ensure_ascii=False)
 
-            add_result(test_result_state, output, strict_mode=strict_mode)
+            add_result(new_results, test_result_state, output, strict_mode=strict_mode)
             current_test += 1
 
         if process_failed and not have_stopping_result:
@@ -215,6 +221,7 @@ def run_tests(
                 )
 
             add_result(
+                new_results,
                 TestResult.PROCESS_ERROR,
                 "\n".join(test_results),
                 process_result.returncode,
@@ -227,8 +234,12 @@ def run_tests(
             )
 
         if on_progress_change is not None:
-            on_progress_change(current_test - start_count)
+            on_progress_change(
+                current_test - start_count,
+                Counter(EMOJIS[x.result] for x in new_results),
+            )
 
+    results.extend(new_results)
     return results
 
 
@@ -427,10 +438,12 @@ class Runner:
                 total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
             )
 
-            def update_progress(value):
+            def update_progress(value, new_results, total_stats=Counter()):
                 progress_mutex.acquire()
+                total_stats.update(new_results)
                 try:
                     progressbar.update(value)
+                    progressbar.set_postfix(**total_stats)
                 finally:
                     progress_mutex.release()
 
