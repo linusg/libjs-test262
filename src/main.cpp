@@ -85,10 +85,15 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrMo
                 return visitor->parse_node();
             });
 
-        auto unit = JS::Bytecode::Generator::generate(program_node);
-        auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
-        passes.perform(*unit);
-        result = interpreter.run(*unit);
+        auto unit_result = JS::Bytecode::Generator::generate(program_node);
+        if (unit_result.is_error()) {
+            result = JS::throw_completion(JS::InternalError::create(interpreter.global_object(), String::formatted("TODO({})", unit_result.error().to_string())));
+        } else {
+            auto unit = unit_result.release_value();
+            auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
+            passes.perform(*unit);
+            result = interpreter.run(*unit);
+        }
     }
 
     if (result.is_error()) {
