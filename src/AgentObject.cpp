@@ -1,13 +1,13 @@
 /*
- * Copyright (c) 2021, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: MIT
  */
 
 #include "AgentObject.h"
+#include <AK/Time.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
-#include <chrono>
 #include <unistd.h>
 
 AgentObject::AgentObject(JS::GlobalObject& global_object)
@@ -29,8 +29,8 @@ void AgentObject::initialize(JS::GlobalObject& global_object)
 
 JS_DEFINE_NATIVE_FUNCTION(AgentObject::monotonic_now)
 {
-    auto time_since_epoch = std::chrono::system_clock::now().time_since_epoch();
-    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(time_since_epoch).count();
+    auto time = Time::now_monotonic();
+    auto milliseconds = time.to_milliseconds();
     return JS::Value(static_cast<double>(milliseconds));
 }
 
