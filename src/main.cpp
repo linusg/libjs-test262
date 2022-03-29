@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "GlobalObject.h"
 #include <AK/Format.h>
 #include <AK/JsonObject.h>
 #include <AK/Result.h>
@@ -18,6 +17,7 @@
 #include <LibJS/Bytecode/Generator.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Bytecode/PassManager.h>
+#include <LibJS/Contrib/Test262/GlobalObject.h>
 #include <LibJS/Interpreter.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
@@ -187,7 +187,7 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
 
     auto vm = JS::VM::create();
     vm->enable_default_host_import_module_dynamically_hook();
-    auto ast_interpreter = JS::Interpreter::create<GlobalObject>(*vm);
+    auto ast_interpreter = JS::Interpreter::create<JS::Test262::GlobalObject>(*vm);
     auto& realm = ast_interpreter->realm();
 
     auto program_or_error = parse_program(realm, source, filepath, program_type);
