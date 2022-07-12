@@ -374,7 +374,7 @@ static Result<TestMetadata, String> extract_metadata(StringView source)
                     metadata.is_async = true;
                 }
             }
-        } else if (line.starts_with("includes:")) {
+        } else if (line.starts_with("includes:"sv)) {
             auto files = parse_list(line);
             if (files.is_empty()) {
                 parsing_includes_list = true;
@@ -705,7 +705,7 @@ int main(int argc, char** argv)
 
             passed = verify_test(result, metadata, result_object);
             if (metadata.is_async && !s_parse_only) {
-                if (!first_output.contains("Test262:AsyncTestComplete") || first_output.contains("Test262:AsyncTestFailure")) {
+                if (!first_output.contains("Test262:AsyncTestComplete"sv) || first_output.contains("Test262:AsyncTestFailure"sv)) {
                     result_object.set("async_fail", true);
                     if (first_output.is_null())
                         result_object.set("output", JsonValue { AK::JsonValue::Type::Null });
@@ -728,7 +728,7 @@ int main(int argc, char** argv)
 
             passed = verify_test(result, metadata, result_object);
             if (metadata.is_async && !s_parse_only) {
-                if (!first_output.contains("Test262:AsyncTestComplete") || first_output.contains("Test262:AsyncTestFailure")) {
+                if (!first_output.contains("Test262:AsyncTestComplete"sv) || first_output.contains("Test262:AsyncTestFailure"sv)) {
                     result_object.set("async_fail", true);
                     if (first_output.is_null())
                         result_object.set("output", JsonValue { AK::JsonValue::Type::Null });
@@ -739,10 +739,10 @@ int main(int argc, char** argv)
         }
 
         if (passed)
-            result_object.remove("strict_mode");
+            result_object.remove("strict_mode"sv);
 
-        if (!result_object.has("result"))
-            result_object.set("result", passed ? "passed" : "failed");
+        if (!result_object.has("result"sv))
+            result_object.set("result"sv, passed ? "passed"sv : "failed"sv);
     }
 
     s_current_test = "";
