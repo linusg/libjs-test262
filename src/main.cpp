@@ -87,7 +87,7 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrMo
 
         auto unit_result = JS::Bytecode::Generator::generate(program_node);
         if (unit_result.is_error()) {
-            result = JS::throw_completion(JS::InternalError::create(interpreter.global_object(), String::formatted("TODO({})", unit_result.error().to_string())));
+            result = JS::throw_completion(JS::InternalError::create(interpreter.realm(), String::formatted("TODO({})", unit_result.error().to_string())));
         } else {
             auto unit = unit_result.release_value();
             auto& passes = JS::Bytecode::Interpreter::optimization_pipeline();
@@ -196,7 +196,7 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
 
     OwnPtr<JS::Bytecode::Interpreter> bytecode_interpreter = nullptr;
     if (s_use_bytecode)
-        bytecode_interpreter = make<JS::Bytecode::Interpreter>(ast_interpreter->global_object(), ast_interpreter->realm());
+        bytecode_interpreter = make<JS::Bytecode::Interpreter>(realm);
 
     auto run_with_interpreter = [&](ScriptOrModuleProgram& program) {
         if (s_use_bytecode)
