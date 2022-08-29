@@ -504,7 +504,7 @@ def main() -> None:
     parser.add_argument(
         "-j",
         "--libjs-test262-runner",
-        required=True,
+        default="./Build/libjs-test262-runner",
         metavar="PATH",
         help="path to the 'libjs-test262-runner' binary",
     )
@@ -517,7 +517,7 @@ def main() -> None:
     parser.add_argument(
         "-t",
         "--test262-root",
-        required=True,
+        default="./test262",
         metavar="PATH",
         help="path to the 'test262' directory",
     )
