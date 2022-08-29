@@ -536,6 +536,7 @@ void __assert_fail(const char* assertion, const char* file, unsigned int line, c
 int main(int argc, char** argv)
 {
     int timeout = 10;
+    bool enable_debug_printing = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("LibJS test262 runner for streaming tests");
@@ -543,6 +544,7 @@ int main(int argc, char** argv)
     args_parser.add_option(s_use_bytecode, "Use the bytecode interpreter", "use-bytecode", 'b');
     args_parser.add_option(s_parse_only, "Only parse the files", "parse-only", 'p');
     args_parser.add_option(timeout, "Seconds before test should timeout", "timeout", 't', "seconds");
+    args_parser.add_option(enable_debug_printing, "Enable debug printing", "debug", 'd');
     args_parser.parse(argc, argv);
 
     if (s_harness_file_directory.is_empty()) {
@@ -559,7 +561,7 @@ int main(int argc, char** argv)
         return 2;
     }
 
-    AK::set_debug_enabled(false);
+    AK::set_debug_enabled(enable_debug_printing);
 
     // The piping stuff is based on https://stackoverflow.com/a/956269.
     constexpr auto BUFFER_SIZE = 1 * KiB;
