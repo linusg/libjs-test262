@@ -67,6 +67,7 @@ optional arguments:
   --ignore IGNORE       ignore any tests matching the glob
   --forward-stderr      forward all stderr output to the stderr of the script
   --summary             only show the top level results
+  --debug               enable debug logging of the runner
 ```
 
 ## Current status
