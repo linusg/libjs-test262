@@ -75,7 +75,7 @@ def run_streaming_script(
     libjs_test262_runner: Path,
     test262_root: Path,
     use_bytecode: bool,
-    parse_only: bool,
+    extra_runner_options: list[str],
     timeout: int,
     memory_limit: int,
     test_file_paths: list[Path],
@@ -88,7 +88,7 @@ def run_streaming_script(
     command = [
         str(libjs_test262_runner),
         *(["-b"] if use_bytecode else []),
-        *(["--parse-only"] if parse_only else []),
+        *extra_runner_options,
         "--harness-location",
         str((test262_root / "harness").resolve()),
         "-t",
@@ -112,7 +112,7 @@ def run_tests(
     test262_root: Path,
     test_file_paths: list[Path],
     use_bytecode: bool,
-    parse_only: bool,
+    extra_runner_options: list[str],
     timeout: int,
     memory_limit: int,
     on_progress_change: Callable[[int, dict[str, int]], None] | None,
@@ -147,7 +147,7 @@ def run_tests(
                 libjs_test262_runner,
                 test262_root,
                 use_bytecode,
-                parse_only,
+                extra_runner_options,
                 timeout,
                 memory_limit,
                 test_file_paths[current_test : current_test + BATCH_SIZE],
@@ -229,7 +229,7 @@ def run_tests(
             current_test += 1
         elif forward_stderr is not None and process_result.stderr.strip() != "":
             forward_stderr(
-                "Process did not fail but still there is stderr output:\n\n"
+                "Process did not fail but still there is stderr output:\n"
                 + process_result.stderr
             )
 
@@ -256,7 +256,7 @@ class Runner:
         use_bytecode: bool = False,
         track_per_file: bool = False,
         fail_only: bool = False,
-        parse_only: bool = False,
+        extra_runner_options: list[str] | None = None,
         forward_stderr: bool = False,
         summary: bool = False,
     ) -> None:
@@ -275,7 +275,7 @@ class Runner:
         self.file_result_map: dict[str, str] = {}
         self.total_count = 0
         self.duration = datetime.timedelta()
-        self.parse_only = parse_only
+        self.extra_runner_options = extra_runner_options or []
         self.update_function: Callable[[int], None] | None = None
         self.print_output: Callable[[Optional[Any]], Any] = print
 
@@ -396,7 +396,7 @@ class Runner:
                 self.test262_root,
                 files,
                 use_bytecode=self.use_bytecode,
-                parse_only=self.parse_only,
+                extra_runner_options=self.extra_runner_options,
                 timeout=self.timeout,
                 memory_limit=self.memory_limit,
                 on_progress_change=self.update_function,
@@ -590,8 +590,21 @@ def main() -> None:
         action="store_true",
         help="only show the top level results",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="enable debug logging of the runner",
+    )
 
     args = parser.parse_args()
+
+    extra_runner_options = []
+    if args.parse_only:
+        extra_runner_options.append("--parse-only")
+    if args.debug:
+        extra_runner_options.append("--debug")
+        # We have to enable forward_stderr else the logs won't show up
+        args.forward_stderr = True
 
     runner = Runner(
         Path(args.libjs_test262_runner).resolve(),
@@ -604,7 +617,7 @@ def main() -> None:
         args.use_bytecode,
         args.per_file is not None,
         args.fail_only,
-        args.parse_only,
+        extra_runner_options,
         args.forward_stderr,
         args.summary,
     )
