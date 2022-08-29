@@ -481,6 +481,25 @@ static bool verify_test(Result<void, TestError>& result, TestMetadata const& met
 
     got_error = JsonValue { error_to_json(error) };
 
+    if (metadata.program_type == JS::Program::Type::Module && metadata.type == "SyntaxError"sv) {
+        // NOTE: Since the "phase" of negative results is both not defined and hard to
+        //       track throughout the entire Module life span we will just accept any
+        //       SyntaxError as the correct one.
+        //       See for example:
+        //       - test/language/module-code/instn-star-err-not-found.js
+        //       - test/language/module-code/instn-resolve-err-syntax-1.js
+        //       - test/language/import/json-invalid.js
+        //       The first fails in runtime because there is no 'x' to export
+        //       However this is during the linking phase of the upper module.
+        //       Whereas the second fails with a SyntaxError because the linked module
+        //       has one.
+        //       The third test is the same as the second, upper module is fine but
+        //       import a module with SyntaxError, however here the phase is runtime.
+        //       In conclusion all the test which would cause the inital module to not
+        //       be evaluated !should! have '$DONOTEVALUATE();' at the top causing a
+        //       Reference error, meaning we just ignore the phase in the SyntaxError case.
+        return error.type == metadata.type;
+    }
     return error.phase == metadata.phase && error.type == metadata.type;
 }
 
