@@ -577,7 +577,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--ignore",
-        default="",
+        default="test/staging/**/*.js",
         help="ignore any tests matching the glob",
     )
     parser.add_argument(
