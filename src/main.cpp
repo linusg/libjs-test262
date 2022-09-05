@@ -46,7 +46,7 @@ struct TestError {
     String harness_file;
 };
 
-using ScriptOrModuleProgram = Variant<NonnullRefPtr<JS::Script>, NonnullRefPtr<JS::SourceTextModule>>;
+using ScriptOrModuleProgram = Variant<JS::NonnullGCPtr<JS::Script>, JS::NonnullGCPtr<JS::SourceTextModule>>;
 
 template<typename ScriptType>
 static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath)
@@ -151,7 +151,7 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
     return cache->value.view();
 }
 
-static Result<NonnullRefPtr<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
+static Result<JS::NonnullGCPtr<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
 {
     auto source_or_error = read_harness_file(harness_file);
     if (source_or_error.is_error())
@@ -165,7 +165,7 @@ static Result<NonnullRefPtr<JS::Script>, TestError> parse_harness_files(JS::Real
             harness_file
         };
     }
-    return program_or_error.release_value().get<NonnullRefPtr<JS::Script>>();
+    return program_or_error.release_value().get<JS::NonnullGCPtr<JS::Script>>();
 }
 
 static Result<void, TestError> run_test(StringView source, StringView filepath, JS::Program::Type program_type, Vector<StringView> const& harness_files)
