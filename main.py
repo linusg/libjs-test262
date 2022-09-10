@@ -220,9 +220,13 @@ def run_tests(
                     + process_result.stderr
                 )
 
+            probable_result = TestResult.PROCESS_ERROR
+            if process_result.returncode == -signal.SIGALRM:
+                probable_result = TestResult.TIMEOUT_ERROR
+
             add_result(
                 new_results,
-                TestResult.PROCESS_ERROR,
+                probable_result,
                 "\n".join(test_results),
                 process_result.returncode,
             )
