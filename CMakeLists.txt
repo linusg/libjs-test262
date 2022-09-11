@@ -48,12 +48,3 @@ endif()
 include (FetchContent)
 include (cmake/FetchLagom.cmake)
 
-find_package(Threads REQUIRED)
-
-set(SOURCES
-    src/main.cpp
-)
-
-add_executable(libjs-test262-runner ${SOURCES})
-target_link_libraries(libjs-test262-runner Threads::Threads Lagom::Core Lagom::JS rt)
-install(TARGETS libjs-test262-runner RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})

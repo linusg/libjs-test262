@@ -29,6 +29,16 @@ def get_git_commit_timestamp(path: Path) -> int:
     return int(run_command(f"git --git-dir {path / '.git'} log -1 --pretty=format:%ct"))
 
 
+def find_lagom_executable(test262_path: Path, serenity_path: Path, name: str):
+    executable_path = test262_path / f"Build/_deps/lagom-build/{name}"
+    if not executable_path.exists():
+        executable_path = serenity_path / f"Build/lagom/{name}"
+        if not executable_path.exists():
+            executable_path = serenity_path / f"Build/lagom/Meta/Lagom/{name}"
+
+    return executable_path
+
+
 def main() -> None:
     # NOTE: There's deliberately no error handling here, if any of
     # these fail we might as well let the script blow up in our face -
@@ -100,13 +110,12 @@ def main() -> None:
     commit_timestamp = get_git_commit_timestamp(serenity)
     run_timestamp = int(time.time())
 
-    serenity_test_js = libjs_test262 / "Build/_deps/lagom-build/test-js"
-    if not serenity_test_js.exists():
-        serenity_test_js = serenity / "Build/lagom/test-js"
-        if not serenity_test_js.exists():
-            serenity_test_js = serenity / "Build/lagom/Meta/Lagom/test-js"
+    serenity_test_js = find_lagom_executable(libjs_test262, serenity, "test-js")
+
+    libjs_test262_runner = find_lagom_executable(
+        libjs_test262, serenity, "test262-runner"
+    )
     libjs_test262_main_py = libjs_test262 / "main.py"
-    libjs_test262_runner = libjs_test262 / "Build/libjs-test262-runner"
 
     version_serenity = get_git_revision(serenity)
     version_libjs_test262 = get_git_revision(libjs_test262)
