@@ -39,10 +39,16 @@ add_compile_options(-Wwrite-strings)
 add_compile_options(-fno-exceptions)
 
 option(ENABLE_ADDRESS_SANITIZER "Enable address sanitizer testing in gcc/clang" OFF)
+option(ENABLE_UNDEFINED_SANITIZER "Enable undefined behavior sanitizer testing in gcc/clang" OFF)
 
 if (ENABLE_ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
+endif()
+
+if (ENABLE_UNDEFINED_SANITIZER)
+    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=undefined)
 endif()
 
 include (FetchContent)
