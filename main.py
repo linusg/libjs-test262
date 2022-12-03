@@ -75,6 +75,7 @@ def run_streaming_script(
     libjs_test262_runner: Path,
     test262_root: Path,
     use_bytecode: bool,
+    enable_bytecode_optimizations: bool,
     extra_runner_options: list[str],
     timeout: int,
     memory_limit: int,
@@ -88,6 +89,7 @@ def run_streaming_script(
     command = [
         str(libjs_test262_runner),
         *(["-b"] if use_bytecode else []),
+        *(["-e"] if enable_bytecode_optimizations else []),
         *extra_runner_options,
         "--harness-location",
         str((test262_root / "harness").resolve()),
@@ -112,6 +114,7 @@ def run_tests(
     test262_root: Path,
     test_file_paths: list[Path],
     use_bytecode: bool,
+    enable_bytecode_optimizations: bool,
     extra_runner_options: list[str],
     timeout: int,
     memory_limit: int,
@@ -147,6 +150,7 @@ def run_tests(
                 libjs_test262_runner,
                 test262_root,
                 use_bytecode,
+                enable_bytecode_optimizations,
                 extra_runner_options,
                 timeout,
                 memory_limit,
@@ -258,6 +262,7 @@ class Runner:
         silent: bool = False,
         verbose: bool = False,
         use_bytecode: bool = False,
+        enable_bytecode_optimizations: bool = False,
         track_per_file: bool = False,
         fail_only: bool = False,
         extra_runner_options: list[str] | None = None,
@@ -272,6 +277,7 @@ class Runner:
         self.silent = silent
         self.verbose = verbose
         self.use_bytecode = use_bytecode
+        self.enable_bytecode_optimizations = enable_bytecode_optimizations
         self.track_per_file = track_per_file
         self.fail_only = fail_only
         self.files: list[Path] = []
@@ -400,6 +406,7 @@ class Runner:
                 self.test262_root,
                 files,
                 use_bytecode=self.use_bytecode,
+                enable_bytecode_optimizations=self.enable_bytecode_optimizations,
                 extra_runner_options=self.extra_runner_options,
                 timeout=self.timeout,
                 memory_limit=self.memory_limit,
@@ -519,6 +526,12 @@ def main() -> None:
         help="Use the bytecode interpreter to run the tests",
     )
     parser.add_argument(
+        "-e",
+        "--enable-bytecode-optimizations",
+        action="store_true",
+        help="Enable the bytecode optimization passes",
+    )
+    parser.add_argument(
         "-t",
         "--test262-root",
         default="./test262",
@@ -619,6 +632,7 @@ def main() -> None:
         args.silent,
         args.verbose,
         args.use_bytecode,
+        args.enable_bytecode_optimizations,
         args.per_file is not None,
         args.fail_only,
         extra_runner_options,
