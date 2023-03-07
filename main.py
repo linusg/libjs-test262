@@ -62,6 +62,7 @@ EMOJIS = {
     TestResult.RUNNER_EXCEPTION: "🐍",
     TestResult.TODO_ERROR: "📝",
 }
+EMOJIS_TO_TEST_RESULT = {v: k for k, v in EMOJIS.items()}
 
 NON_FAIL_RESULTS = [TestResult.PASSED, TestResult.SKIPPED]
 
@@ -288,6 +289,7 @@ class Runner:
         self.extra_runner_options = extra_runner_options or []
         self.update_function: Callable[[int], None] | None = None
         self.print_output: Callable[[Optional[Any]], Any] = print
+        self.emoji_result_counter = Counter()
 
         self.forward_stderr_function: Callable[[str], None] | None
         if forward_stderr:
@@ -396,6 +398,13 @@ class Runner:
         for k, v in self.directory_result_map.items():
             print_tree(v, k, 0)
 
+        test_results_pretty = [
+            f"    {count}: {emoji} ({EMOJIS_TO_TEST_RESULT[emoji]})"
+            for emoji, count in self.emoji_result_counter.items()
+        ]
+        print(f"All test results finished in {self.duration}")
+        print("\n".join(test_results_pretty))
+
     def process_list(self, files: list[Path]) -> list[TestRun]:
         if not files:
             return []
@@ -449,12 +458,12 @@ class Runner:
                 total=self.total_count, mininterval=1, unit="tests", smoothing=0.1
             )
 
-            def update_progress(value, new_results, total_stats=Counter()):
+            def update_progress(value, new_results):
                 progress_mutex.acquire()
-                total_stats.update(new_results)
+                self.emoji_result_counter.update(new_results)
                 try:
                     progressbar.update(value)
-                    progressbar.set_postfix(**total_stats)
+                    progressbar.set_postfix(**self.emoji_result_counter)
                 finally:
                     progress_mutex.release()
 
