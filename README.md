@@ -34,7 +34,7 @@ case, so you'll need to build `libLagom.a` yourself.
 Once that's done, run:
 
 ```console
-python3 main.py --libjs-test262-runner ./Build/_deps/lagom-build/test262-runner --test262-root ./test262/
+python3 main.py --libjs-test262-runner ./Build/_deps/lagom-build/bin/test262-runner --test262-root ./test262/
 ```
 
 ## Options
