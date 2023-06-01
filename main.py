@@ -121,7 +121,6 @@ def run_tests(
     on_progress_change: Callable[[int, dict[str, int]], None] | None,
     forward_stderr: Callable[[str], None] | None,
 ) -> list[TestRun]:
-
     current_test = 0
     results = []
 
