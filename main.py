@@ -14,6 +14,7 @@ import glob
 import json
 import multiprocessing
 import os
+import platform
 import resource
 import signal
 import subprocess
@@ -82,9 +83,10 @@ def run_streaming_script(
     test_file_paths: list[Path],
 ) -> subprocess.CompletedProcess:
     def limit_memory():
-        resource.setrlimit(
-            resource.RLIMIT_AS, (memory_limit * 1024 * 1024, resource.RLIM_INFINITY)
-        )
+        if platform.system() != "Darwin":
+            resource.setrlimit(
+                resource.RLIMIT_AS, (memory_limit * 1024 * 1024, resource.RLIM_INFINITY)
+            )
 
     command = [
         str(libjs_test262_runner),
